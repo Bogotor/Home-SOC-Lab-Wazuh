@@ -6,7 +6,7 @@ Diseñar un laboratorio SOC que permita centralizar y analizar eventos de seguri
 
 La infraestructura utilizará un MacBook Pro como equipo principal de virtualización y un mini PC independiente como endpoint Windows.
 
-**Estado:** diseño preliminar. Los componentes Wazuh todavía no han sido implementados.
+**Estado:** VM del servidor central creada; Ubuntu Server instalado y en funcionamiento. **Wazuh todavía no está instalado.**
 
 ## 2. Infraestructura física
 
@@ -16,7 +16,7 @@ La infraestructura utilizará un MacBook Pro como equipo principal de virtualiza
 - Arquitectura: ARM64.
 - Memoria unificada: 48 GB.
 - Sistema operativo: macOS.
-- Plataforma de virtualización prevista: VMware Fusion.
+- Plataforma de virtualización: VMware Fusion Professional 26H1u1 (build 2689522).
 
 Funciones:
 - Alojar el servidor central de Wazuh mediante Linux virtualizado.
@@ -42,25 +42,31 @@ No se utilizarán máquinas virtuales en el mini PC durante la implementación i
 
 ## 3. Arquitectura lógica propuesta
 
-### VM 1 — Servidor central
+### VM 1 — Servidor central (SOC-WAZUH-SERVER)
 
-Sistema operativo previsto: Ubuntu Server 24.04 LTS ARM64.
+Sistema operativo: Ubuntu Server 24.04.5 LTS ARM64 (instalado y en funcionamiento).
 
-Componentes:
+Hostname: `soc-wazuh-server`.
+
+Componentes previstos (todavía no instalados):
 - Wazuh Server.
 - Wazuh Indexer.
 - Wazuh Dashboard.
 
-Recursos iniciales propuestos:
+Recursos configurados:
 - 4 vCPU.
-- 12 GB RAM.
-- 80 GB de almacenamiento virtual.
+- 12 GiB RAM.
+- 60 GB de almacenamiento virtual sin preasignación (propuesta inicial: 80 GB).
 
-Estos recursos serán revisados antes de crear la máquina virtual.
+Almacenamiento: ext4 sobre LVM para el volumen raíz (`/` 50 GB), `/boot` 2 GB, EFI ≈ 1 GB y ≈ 6,9 GB libres en el grupo de volúmenes LVM para futuras ampliaciones.
+
+Procedimiento y verificaciones: [`documentation/vm-01-setup.md`](../documentation/vm-01-setup.md).
 
 ### VM 2 — Endpoint Linux
 
-Sistema operativo previsto: Ubuntu ARM64.
+**Estado:** pendiente de creación.
+
+Sistema operativo previsto: Ubuntu ARM64 (versión pendiente de definir).
 
 Componentes:
 - Wazuh Agent.
@@ -80,7 +86,9 @@ El servidor analizará los eventos mediante sus mecanismos de decodificación y 
 
 Las alertas generadas se enviarán al indexador para su almacenamiento y consulta, y podrán visualizarse desde Wazuh Dashboard.
 
-El diseño de direccionamiento IP, los puertos y el modo de conexión de red de las máquinas virtuales se documentarán después de verificar la conectividad real.
+Configuración de red actual (provisional): la VM 1 utiliza NAT de VMware Fusion con IP asignada por DHCP, que no se considera permanente. Se ha comprobado el acceso SSH a la VM desde el anfitrión. No se ha comprobado que el endpoint Windows físico pueda alcanzar el servidor en este modo.
+
+El diseño definitivo de direccionamiento IP, los puertos y el modo de conexión de red de las máquinas virtuales se documentará después de verificar la conectividad real.
 
 ## 5. Justificación de la arquitectura
 
@@ -102,16 +110,22 @@ Esta distribución también permite estudiar monitoreo de seguridad en Linux y W
 
 ## 7. Validaciones pendientes
 
-- Confirmar los recursos y compatibilidad del servidor Linux ARM64 con la versión de Wazuh seleccionada.
-- Verificar la configuración de red de VMware Fusion.
+- Confirmar la compatibilidad de Ubuntu Server 24.04 ARM64 con la versión de Wazuh seleccionada.
+- Definir el modo de red definitivo de VMware Fusion (actualmente NAT).
 - Definir las direcciones IP del laboratorio.
-- Comprobar conectividad entre servidor y endpoints.
+- Comprobar conectividad entre servidor y endpoints, en especial con el endpoint Windows físico.
+- Aplicar hardening de SSH en el servidor (autenticación por claves).
 - Medir el consumo real de recursos.
 - Verificar el funcionamiento de los servicios centrales.
 - Confirmar la recepción de eventos de los agentes.
 
 ## 8. Estado
 
-**Fase 0 — Diseño preliminar de arquitectura.**
+**Fase 2 — Preparación de infraestructura (en proceso).**
+
+- VM 1 (SOC-WAZUH-SERVER): Ubuntu Server instalado, actualizado, en funcionamiento y accesible por SSH desde el anfitrión.
+- Wazuh: todavía no instalado.
+- VM 2 (endpoint Linux): pendiente de creación.
+- Endpoint Windows: pendiente de incorporación.
 
 Este documento se actualizará conforme se validen las decisiones técnicas y se implemente el laboratorio.
