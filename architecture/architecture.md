@@ -6,7 +6,7 @@ Diseñar un laboratorio SOC que permita centralizar y analizar eventos de seguri
 
 La infraestructura utilizará un MacBook Pro como equipo principal de virtualización y un mini PC independiente como endpoint Windows.
 
-**Estado:** VM del servidor central creada; Ubuntu Server instalado y en funcionamiento. **Wazuh todavía no está instalado.**
+**Estado:** VM del servidor central y VM del endpoint Linux creadas, con sus sistemas operativos instalados y en funcionamiento. **Wazuh todavía no está instalado** (ni el servidor ni los agentes).
 
 ## 2. Infraestructura física
 
@@ -62,21 +62,35 @@ Almacenamiento: ext4 sobre LVM para el volumen raíz (`/` 50 GB), `/boot` 2 GB, 
 
 Procedimiento y verificaciones: [`documentation/vm-01-setup.md`](../documentation/vm-01-setup.md).
 
-### VM 2 — Endpoint Linux
+### VM 2 — Endpoint Linux (SOC-LINUX-ENDPOINT)
 
-**Estado:** pendiente de creación.
+**Estado:** VM creada; Ubuntu Desktop instalado, actualizado y en funcionamiento. **Wazuh Agent todavía no está instalado.**
 
-Sistema operativo previsto: Ubuntu ARM64 (versión pendiente de definir).
+Sistema operativo: Ubuntu Desktop 24.04.5 LTS ARM64, entorno GNOME en sesión Wayland.
 
-Componentes:
+Hostname: `soc-linux-endpoint`.
+
+Funciones:
+- Entorno de aprendizaje diario de Linux.
+- Futuro endpoint Linux monitorizado por Wazuh.
+
+Componentes previstos (todavía no instalados o no comprobados):
 - Wazuh Agent.
-- Servicio SSH para prácticas de autenticación.
+- Servicio SSH para prácticas de autenticación (estado no comprobado en la VM; Ubuntu Desktop no incluye el servidor OpenSSH por defecto).
 - Archivos de prueba supervisados.
 
-Recursos propuestos:
-- 2 vCPU.
-- 3 GB RAM.
-- 30 GB de almacenamiento virtual.
+Componentes instalados: `open-vm-tools` y `open-vm-tools-desktop` 13.0.10 (integración con VMware Fusion y portapapeles compartido).
+
+Recursos configurados:
+- 4 vCPU.
+- 6 GiB RAM (5,8 GiB reconocidos por Linux).
+- 50 GB de almacenamiento virtual NVMe.
+
+La propuesta inicial (2 vCPU, 3 GB RAM, 30 GB) se amplió al elegir una edición con escritorio gráfico.
+
+Almacenamiento: partición EFI 1 GB (vfat) y partición raíz `/` 48,9 GB en ext4, sin LVM.
+
+Procedimiento y verificaciones: [`documentation/vm-02-setup.md`](../documentation/vm-02-setup.md).
 
 ## 4. Comunicación entre componentes
 
@@ -86,7 +100,20 @@ El servidor analizará los eventos mediante sus mecanismos de decodificación y 
 
 Las alertas generadas se enviarán al indexador para su almacenamiento y consulta, y podrán visualizarse desde Wazuh Dashboard.
 
-Configuración de red actual (provisional): la VM 1 utiliza NAT de VMware Fusion con IP asignada por DHCP, que no se considera permanente. Se ha comprobado el acceso SSH a la VM desde el anfitrión. No se ha comprobado que el endpoint Windows físico pueda alcanzar el servidor en este modo.
+Configuración de red actual (provisional): las VM 1 y VM 2 utilizan la red NAT de VMware Fusion con IP asignada por DHCP, que no se considera permanente.
+
+| Máquina | IP observada (temporal) |
+|---|---|
+| SOC-WAZUH-SERVER | `172.16.203.128` |
+| SOC-LINUX-ENDPOINT | `172.16.203.129` |
+
+Comprobaciones realizadas:
+- Acceso SSH a la VM 1 desde el anfitrión.
+- Conectividad ICMP bidireccional entre la VM 1 y la VM 2 (0 % de pérdida, latencia media inferior a 1 ms).
+
+Sin comprobar:
+- Conectividad TCP del endpoint Linux con los puertos de Wazuh (los servicios todavía no existen).
+- Alcance del servidor desde el endpoint Windows físico en este modo de red.
 
 El diseño definitivo de direccionamiento IP, los puertos y el modo de conexión de red de las máquinas virtuales se documentará después de verificar la conectividad real.
 
@@ -113,9 +140,12 @@ Esta distribución también permite estudiar monitoreo de seguridad en Linux y W
 - Confirmar la compatibilidad de Ubuntu Server 24.04 ARM64 con la versión de Wazuh seleccionada.
 - Definir el modo de red definitivo de VMware Fusion (actualmente NAT).
 - Definir las direcciones IP del laboratorio.
-- Comprobar conectividad entre servidor y endpoints, en especial con el endpoint Windows físico.
+- Comprobar conectividad con el endpoint Windows físico (la conectividad ICMP entre VM 1 y VM 2 ya está comprobada).
+- Confirmar la compatibilidad de Wazuh Agent con Ubuntu 24.04 ARM64.
 - Aplicar hardening de SSH en el servidor (autenticación por claves).
-- Medir el consumo real de recursos.
+- Comprobar el estado del servidor SSH en la VM 2.
+- Verificar la sincronización horaria de ambas VM.
+- Medir el consumo real de recursos con ambas VM en funcionamiento.
 - Verificar el funcionamiento de los servicios centrales.
 - Confirmar la recepción de eventos de los agentes.
 
@@ -125,7 +155,7 @@ Esta distribución también permite estudiar monitoreo de seguridad en Linux y W
 
 - VM 1 (SOC-WAZUH-SERVER): Ubuntu Server instalado, actualizado, en funcionamiento y accesible por SSH desde el anfitrión.
 - Wazuh: todavía no instalado.
-- VM 2 (endpoint Linux): pendiente de creación.
+- VM 2 (SOC-LINUX-ENDPOINT): Ubuntu Desktop instalado, actualizado, en funcionamiento y con conectividad ICMP con la VM 1. Wazuh Agent todavía no instalado.
 - Endpoint Windows: pendiente de incorporación.
 
 Este documento se actualizará conforme se validen las decisiones técnicas y se implemente el laboratorio.

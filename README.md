@@ -15,7 +15,7 @@ El proyecto está orientado al desarrollo de competencias técnicas para un pues
 | MacBook Pro | Apple M5 Pro, 48 GB de memoria, macOS, VMware Fusion Professional | Virtualización y plataforma central de monitoreo |
 | GMKtec NUCBOX G3 PLUS | Intel N150, 16 GB RAM, 512 GB SSD, Windows 11 Pro | Endpoint Windows monitoreado |
 | VM SOC-WAZUH-SERVER | Ubuntu Server 24.04.5 LTS ARM64 (instalado y en funcionamiento), 4 vCPU, 12 GiB RAM, 60 GB de disco | Servidor central Wazuh (Wazuh todavía no instalado) |
-| Máquina virtual Linux adicional (VM 2) | Ubuntu ARM64, pendiente de creación | Endpoint Linux de pruebas |
+| VM SOC-LINUX-ENDPOINT | Ubuntu Desktop 24.04.5 LTS ARM64 (instalado y en funcionamiento), GNOME/Wayland, 4 vCPU, 6 GiB RAM, 50 GB de disco | Endpoint Linux y entorno de aprendizaje de Linux (Wazuh Agent todavía no instalado) |
 
 La arquitectura es preliminar y está sujeta a validaciones de compatibilidad y recursos.
 
@@ -44,7 +44,7 @@ Fases del proyecto:
 
 **Fase actual: 2 — Preparación de infraestructura (en proceso).**
 
-Ubuntu Server está instalado y en funcionamiento en la VM SOC-WAZUH-SERVER. **Wazuh todavía no está instalado.**
+Las dos máquinas Linux del laboratorio están preparadas: Ubuntu Server en la VM SOC-WAZUH-SERVER y Ubuntu Desktop en la VM SOC-LINUX-ENDPOINT, con conectividad ICMP comprobada entre ambas. **Wazuh todavía no está instalado** (ni el servidor ni los agentes).
 
 Completado:
 - Diagnóstico inicial de conocimientos.
@@ -52,15 +52,16 @@ Completado:
 - Verificación del procesador del mini PC.
 - Inicialización del repositorio Git y publicación en GitHub.
 - Creación de la VM SOC-WAZUH-SERVER e instalación y validación inicial de Ubuntu Server 24.04.5 LTS ARM64 ([documentación](documentation/vm-01-setup.md)).
+- Creación de la VM SOC-LINUX-ENDPOINT e instalación y validación inicial de Ubuntu Desktop 24.04.5 LTS ARM64, con open-vm-tools y conectividad ICMP bidireccional con el servidor ([documentación](documentation/vm-02-setup.md)).
 
 Pendiente:
 - Validación definitiva de la arquitectura.
-- Configuración de red definitiva del laboratorio (actualmente NAT provisional).
+- Configuración de red definitiva del laboratorio (actualmente NAT provisional con DHCP).
 - Hardening de SSH en el servidor (migración a autenticación por claves).
-- Incorporación de evidencias de la VM SOC-WAZUH-SERVER.
+- Incorporación de evidencias de las VM SOC-WAZUH-SERVER y SOC-LINUX-ENDPOINT.
 - Instalación de Wazuh.
-- Creación del endpoint Linux (VM 2).
-- Incorporación de agentes.
+- Instalación de Wazuh Agent en el endpoint Linux.
+- Incorporación del endpoint Windows.
 - Ejecución y documentación de laboratorios.
 - Validación final.
 

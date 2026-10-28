@@ -281,7 +281,8 @@ Recomendaciones:
 - [ ] Hardening de SSH: autenticación por claves y desactivación del acceso por contraseña.
 - [ ] Confirmar la compatibilidad de la versión de Wazuh elegida con Ubuntu 24.04 ARM64.
 - [ ] Instalar Wazuh (Server, Indexer y Dashboard).
-- [ ] Crear el endpoint Linux (VM 2).
+
+> **Actualización:** el endpoint Linux (VM 2, SOC-LINUX-ENDPOINT), que figuraba aquí como pendiente, ya está creado, instalado y validado. La conectividad ICMP entre ambas VM está comprobada. Ver [`vm-02-setup.md`](vm-02-setup.md).
 
 ## 10. Conclusiones y limitaciones
 
