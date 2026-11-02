@@ -20,6 +20,7 @@ La instalación de Wazuh **no forma parte de este hito**.
 **Convenciones de este documento:**
 
 - **Resultado obtenido:** dato comprobado en este laboratorio.
+- **Comando ejecutado:** comando realmente utilizado, con los marcadores indicados abajo.
 - **No registrado:** paso realizado cuyo comando, método o salida exactos no quedaron anotados.
 - **Comando de referencia:** forma habitual de realizar o repetir un paso. **No implica que se ejecutara exactamente así.**
 - **Información técnica general:** comportamiento documentado del software, incluido para entender los resultados, pero **no verificado** en este laboratorio.
@@ -28,6 +29,8 @@ La instalación de Wazuh **no forma parte de este hito**.
 
 - `<IP_SERVIDOR>`: IP de la VM. La asignación actual es temporal (DHCP), por lo que no se usa como valor fijo.
 - `<CLAVE_LAB>`: nombre del archivo de la clave privada en macOS. No se publica.
+
+Los comandos y las salidas se transcriben con estos marcadores en lugar de los valores reales.
 
 > **Relación con otros documentos:** el acceso SSH por contraseña registrado en [`vm-01-setup.md`](vm-01-setup.md) (sección 3.7) corresponde al estado anterior a este hito.
 
@@ -116,98 +119,138 @@ Se necesitan ambas, porque cada una cubre lo que la otra no ve. Una prueba negat
 
 ## 4. Procedimiento ejecutado
 
-### 4.1 Punto de restauración
-
-**Equipo:** MacBook Pro (VMware Fusion).
-
-Se creó el snapshot `baseline-before-ssh-hardening` antes de aplicar el hardening.
-
-**Resultado obtenido:** snapshot creado.
-
-**No registrado:** el estado de la VM al crearlo y su orden exacto respecto a la creación de la clave. **La restauración no se ha probado.**
-
-### 4.2 Creación de la clave
+### 4.1 Creación de la clave
 
 **Equipo:** MacBook Pro (macOS).
 
 Se generó un par de claves Ed25519 específico del laboratorio, protegido con passphrase.
 
-**No registrado:** el comando exacto. Comando de referencia:
+**Comando ejecutado:**
 
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/<CLAVE_LAB> -C "home-soc-lab"
+ssh-keygen -t ed25519 -a 100 -f ~/.ssh/<CLAVE_LAB> -C "home-soc-lab"
 ```
 
 - `-t ed25519`: tipo de clave.
+- `-a 100`: rondas de derivación (KDF) con las que la passphrase cifra la clave privada. El valor por defecto es 16. Más rondas encarecen los intentos de fuerza bruta si alguien copia el archivo, a cambio de un desbloqueo algo más lento.
 - `-f`: archivo de la clave privada. La pública se guarda con el mismo nombre y la extensión `.pub`. Un nombre propio evita sobrescribir otra clave.
 - `-C`: comentario que se añade a la clave pública. Si se omite, suele incluir el usuario y el equipo locales.
 - La passphrase se solicita de forma interactiva, por lo que no queda en el historial de la shell.
 
-### 4.3 Instalación de la clave pública
+### 4.2 Instalación de la clave pública
 
 **Equipos:** MacBook Pro y VM SOC-WAZUH-SERVER.
 
-**Resultado obtenido:** la clave pública se agregó a `~/.ssh/authorized_keys` en el servidor.
-
-**No registrado:** el método utilizado. Comando de referencia (desde el MacBook Pro):
+**Comando ejecutado** (desde el MacBook Pro):
 
 ```bash
-ssh-copy-id -i ~/.ssh/<CLAVE_LAB>.pub socadmin@<IP_SERVIDOR>
+cat ~/.ssh/<CLAVE_LAB>.pub | ssh socadmin@<IP_SERVIDOR> 'umask 077; mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys'
 ```
 
-- `-i`: clave pública que se instalará. Solo se copia la parte pública.
-- En ese momento la conexión todavía se autentica con el método disponible, la contraseña.
+- `cat ~/.ssh/<CLAVE_LAB>.pub |`: envía la clave pública como entrada del comando `ssh`. La clave privada no interviene.
+- `ssh socadmin@<IP_SERVIDOR> '...'`: se conecta y ejecuta en el servidor el texto entre comillas. Las comillas simples hacen que `~` se interprete en el servidor y no en macOS.
+- `umask 077`: lo que se cree a partir de ese momento en esta orden solo será accesible por su propietario. No cambia los permisos de lo que ya exista.
+- `mkdir -p ~/.ssh`: crea el directorio si no existe y no falla si ya existe.
+- `&&`: ejecuta lo siguiente solo si lo anterior tuvo éxito.
+- `cat >> ~/.ssh/authorized_keys`: añade la entrada al final del archivo sin sobrescribir su contenido.
+
+**Resultado obtenido:** el comando terminó correctamente, sin salida adicional. Durante esta operación se introdujo la contraseña de `socadmin`, el único método disponible en ese momento.
+
+> **`ssh-copy-id` no se utilizó.** Es la alternativa habitual para este paso, y se menciona solo como referencia: `ssh-copy-id -i ~/.ssh/<CLAVE_LAB>.pub socadmin@<IP_SERVIDOR>`.
 
 > **Información técnica general (no verificada en este laboratorio):** con la opción `StrictModes`, activa por defecto, `sshd` ignora `authorized_keys` si los permisos del archivo o de sus directorios son demasiado abiertos. Los valores habituales son `700` para `~/.ssh` y `600` para `authorized_keys`.
 
-### 4.4 Prueba de la clave antes de desactivar contraseñas
+### 4.3 Prueba de la clave antes de desactivar contraseñas
 
 **Equipo:** MacBook Pro (macOS).
 
-**Resultado obtenido:** autenticación mediante claves correcta.
-
-**No registrado:** el comando exacto. Comando de referencia:
+**Comando ejecutado:**
 
 ```bash
-ssh -i ~/.ssh/<CLAVE_LAB> -o IdentitiesOnly=yes socadmin@<IP_SERVIDOR>
+ssh -i ~/.ssh/<CLAVE_LAB> \
+    -o IdentitiesOnly=yes \
+    -o PasswordAuthentication=no \
+    -o KbdInteractiveAuthentication=no \
+    socadmin@<IP_SERVIDOR> 'whoami && hostname'
 ```
 
 - `-i`: clave privada que se usará.
 - `-o IdentitiesOnly=yes`: limita el intento a la clave indicada, para que el resultado no se deba a otra clave disponible en el agente SSH.
+- `-o PasswordAuthentication=no` y `-o KbdInteractiveAuthentication=no`: el cliente no intenta esos métodos, por lo que un acceso correcto solo puede deberse a la clave.
+- `'whoami && hostname'`: muestra el usuario y la máquina en la que se ejecuta y cierra la conexión.
+
+**Resultado obtenido:** autenticación mediante claves correcta.
+
+```text
+socadmin
+soc-wazuh-server
+```
 
 Este paso va antes de tocar la configuración del servidor: desactivar las contraseñas sin una clave probada puede dejar al administrador sin acceso remoto.
+
+### 4.4 Punto de restauración
+
+**Equipo:** MacBook Pro (VMware Fusion).
+
+Se creó el snapshot `baseline-before-ssh-hardening` después de preparar y verificar el acceso por clave, y antes de cambiar la política de autenticación.
+
+**Resultado obtenido:** snapshot creado y visible en VMware Fusion.
+
+**No registrado:** el estado de la VM al crearlo. **La restauración no se ha probado.**
 
 ### 4.5 Hallazgo: `50-cloud-init.conf` habilitaba contraseñas
 
 **Equipo:** VM SOC-WAZUH-SERVER.
 
-**Resultado obtenido:** `/etc/ssh/sshd_config.d/50-cloud-init.conf` contenía `PasswordAuthentication yes`.
+Se buscaron las directivas SSH en `/etc/ssh/sshd_config` y en `/etc/ssh/sshd_config.d/`.
 
-**No registrado:** el comando con el que se localizó. Comando de referencia:
+**Resultado obtenido:**
+
+```text
+/etc/ssh/sshd_config:12:Include /etc/ssh/sshd_config.d/*.conf
+/etc/ssh/sshd_config:71:KbdInteractiveAuthentication no
+/etc/ssh/sshd_config.d/50-cloud-init.conf:1:PasswordAuthentication yes
+```
+
+`50-cloud-init.conf` habilitaba las contraseñas, y `sshd_config` incluye ese directorio en su línea 12.
+
+**No registrado:** el comando exacto de la búsqueda. Comando de referencia:
 
 ```bash
-sudo grep -rn 'PasswordAuthentication' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/
+sudo grep -rnE '^(Include|PubkeyAuthentication|PasswordAuthentication|KbdInteractiveAuthentication|PermitRootLogin)' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/
 ```
 
 - `-r`: busca de forma recursiva.
 - `-n`: muestra el número de línea.
+- `-E`: permite usar una expresión regular extendida con alternativas (`|`).
+- `^`: solo coincide al principio de la línea, por lo que omite las directivas comentadas con `#`.
 
-> **Información técnica general (no verificada en este laboratorio):** en Ubuntu 24.04, `/etc/ssh/sshd_config` incluye `/etc/ssh/sshd_config.d/*.conf` al principio. Los archivos se procesan en orden lexicográfico y **`sshd` conserva el primer valor que obtiene para cada directiva**. Por eso, añadir `PasswordAuthentication no` al final de `sshd_config`, o en un archivo ordenado después de `50-cloud-init.conf`, no tendría efecto. cloud-init puede generar este archivo a partir de su opción `ssh_pwauth`.
+> **Información técnica general (no verificada en este laboratorio):** los archivos se procesan en orden lexicográfico y **`sshd` conserva el primer valor que obtiene para cada directiva**. Por eso, añadir `PasswordAuthentication no` al final de `sshd_config`, o en un archivo ordenado después de `50-cloud-init.conf`, no tendría efecto. cloud-init puede generar este archivo a partir de su opción `ssh_pwauth`.
+
+> **En este laboratorio:** el resultado de la sección 4.8 es coherente con esa precedencia. `sshd -T` muestra `passwordauthentication no` sin que conste ninguna modificación de `50-cloud-init.conf`.
 
 ### 4.6 Creación del archivo de hardening
 
 **Equipo:** VM SOC-WAZUH-SERVER.
 
-**Resultado obtenido:** se creó `/etc/ssh/sshd_config.d/01-home-soc-hardening.conf` con este contenido:
+**Comando ejecutado:**
 
-```text
+```bash
+sudo tee /etc/ssh/sshd_config.d/01-home-soc-hardening.conf > /dev/null <<'EOF'
 PubkeyAuthentication yes
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 PermitRootLogin no
+EOF
 ```
 
-**No registrado:** el editor utilizado, y el propietario y los permisos del archivo. No consta ninguna modificación de `50-cloud-init.conf`.
+- `sudo tee <archivo>`: escribe en el archivo lo que recibe por la entrada estándar, con privilegios de `root`. Se usa `tee` porque en `sudo comando > archivo` la redirección la haría la shell del usuario, sin esos privilegios. Sin `-a`, sobrescribe el archivo si ya existe.
+- `> /dev/null`: descarta la copia que `tee` también escribe en pantalla.
+- `<<'EOF'`: envía como entrada las líneas siguientes, hasta `EOF`. Las comillas evitan que la shell interprete su contenido.
+
+**Resultado obtenido:** se creó `/etc/ssh/sshd_config.d/01-home-soc-hardening.conf` con las cuatro directivas.
+
+**No registrado:** el propietario y los permisos del archivo. No consta ninguna modificación de `50-cloud-init.conf`.
 
 **Información técnica general** sobre cada directiva:
 
@@ -237,24 +280,19 @@ sudo sshd -t
 **Equipo:** VM SOC-WAZUH-SERVER.
 
 ```bash
-sudo sshd -T
+sudo sshd -T | grep -E '^(pubkeyauthentication|passwordauthentication|kbdinteractiveauthentication|permitrootlogin) '
 ```
 
 - `-T`: modo de prueba extendido. Procesa la configuración, incluidos los archivos incluidos y la precedencia, y muestra los valores resultantes.
+- `grep -E`: muestra solo estas directivas, que `sshd -T` escribe en minúsculas. El espacio final evita coincidencias con otras directivas cuyo nombre empiece igual.
 
 **Resultado obtenido:** confirmó los cuatro valores esperados.
 
-| Directiva | Valor confirmado |
-|---|---|
-| `PubkeyAuthentication` | `yes` |
-| `PasswordAuthentication` | `no` |
-| `KbdInteractiveAuthentication` | `no` |
-| `PermitRootLogin` | `no` |
-
-**No registrado:** la salida literal y si se filtró. Comando de referencia para mostrar solo estas directivas (`sshd -T` las escribe en minúsculas):
-
-```bash
-sudo sshd -T | grep -Ei '^(pubkeyauthentication|passwordauthentication|kbdinteractiveauthentication|permitrootlogin) '
+```text
+permitrootlogin no
+pubkeyauthentication yes
+passwordauthentication no
+kbdinteractiveauthentication no
 ```
 
 > **Qué demuestra y qué no.** `sshd -T` lee la configuración del disco: muestra lo que aplicaría un proceso nuevo, no lo que está haciendo el servicio en ejecución. Por eso hacen falta el reinicio y las pruebas de comportamiento.
@@ -263,42 +301,50 @@ sudo sshd -T | grep -Ei '^(pubkeyauthentication|passwordauthentication|kbdintera
 
 **Equipo:** VM SOC-WAZUH-SERVER.
 
-**Resultado obtenido:** se reinició `ssh.service` para aplicar la configuración.
-
-**No registrado:** el comando exacto. Comando de referencia:
+**Comando ejecutado:**
 
 ```bash
 sudo systemctl restart ssh.service
 ```
 
-> **Información técnica general (no verificada en este laboratorio):** el reinicio no suele cerrar las sesiones SSH ya abiertas. Mantener una abierta sirve de red de seguridad, pero no valida la configuración nueva: para eso hace falta una conexión nueva. No consta si se mantuvo una sesión abierta durante este paso.
+**Resultado obtenido:** se reinició `ssh.service` para aplicar la configuración, manteniendo abierta la sesión administrativa existente como medida de recuperación.
+
+> **Información técnica general (no verificada en este laboratorio):** el reinicio no suele cerrar las sesiones SSH ya abiertas. Mantener una abierta sirve de red de seguridad, pero no valida la configuración nueva: para eso hace falta una conexión nueva.
 
 ### 4.10 Prueba positiva tras el reinicio
 
 **Equipo:** MacBook Pro (macOS).
 
-**Resultado obtenido:** una nueva conexión SSH mediante claves fue exitosa.
+**Resultado obtenido:** una segunda conexión SSH mediante claves, abierta sin cerrar la sesión administrativa, fue exitosa.
 
-**No registrado:** el comando exacto. El comando de referencia es el de la sección 4.4.
+**No registrado:** el comando exacto. El comando de referencia es el de la sección 4.3.
 
 ### 4.11 Prueba negativa con contraseña
 
-**Equipo:** cliente SSH (equipo de origen no registrado).
+**Equipo:** MacBook Pro (macOS).
 
-**Resultado obtenido:** una prueba controlada con autenticación por contraseña fue rechazada.
-
-**Referencia comparativa:** antes del hardening, `socadmin` sí podía entrar con contraseña ([`vm-01-setup.md`](vm-01-setup.md), sección 3.7). Ese cambio de comportamiento es lo que relaciona el rechazo con la configuración aplicada.
-
-**No registrado:** el comando exacto, el mensaje mostrado y si el cliente llegó a solicitar la contraseña. Comando de referencia:
+**Comando ejecutado:**
 
 ```bash
-ssh -o PubkeyAuthentication=no -o PreferredAuthentications=password socadmin@<IP_SERVIDOR>
+ssh -o PubkeyAuthentication=no \
+    -o KbdInteractiveAuthentication=no \
+    -o PreferredAuthentications=password \
+    socadmin@<IP_SERVIDOR>
 ```
 
 - `-o PubkeyAuthentication=no`: el cliente no intenta usar claves.
+- `-o KbdInteractiveAuthentication=no`: el cliente no intenta `keyboard-interactive`.
 - `-o PreferredAuthentications=password`: el cliente solo intenta el método de contraseña.
 
-> **Información técnica general (no verificada en este laboratorio):** el mensaje habitual en este escenario es `Permission denied (publickey).`, sin llegar a pedir la contraseña. Con `ssh -v`, la línea `Authentications that can continue:` muestra los métodos que ofrece el servidor. Si solo aparece `publickey`, el rechazo se debe a la política del servidor y no a una contraseña incorrecta. **Este mensaje es una referencia, no la salida registrada en este laboratorio.**
+**Resultado obtenido:**
+
+```text
+socadmin@<IP_SERVIDOR>: Permission denied (publickey).
+```
+
+**Interpretación:** los métodos entre paréntesis son los que el servidor permite para continuar. Solo aparece `publickey`, lo que indica que el rechazo responde a la política del servidor y no a una contraseña mal escrita. La salida registrada no muestra ninguna solicitud de contraseña. Esta lectura no se ha contrastado con los registros del servidor (sección 6.3).
+
+**Referencia comparativa:** antes del hardening, `socadmin` sí podía entrar con contraseña ([`vm-01-setup.md`](vm-01-setup.md), sección 3.7). Ese cambio de comportamiento es lo que relaciona el rechazo con la configuración aplicada.
 
 ## 5. Decisiones técnicas
 
@@ -308,10 +354,10 @@ Las decisiones son hechos del laboratorio. Las alternativas y justificaciones so
 |---|---|---|
 | Clave Ed25519 | RSA, ECDSA | Claves cortas, firma rápida y amplio soporte en OpenSSH. |
 | Clave específica del laboratorio | Reutilizar una clave personal | Aísla el laboratorio: se puede revocar sin afectar a otros sistemas, y un compromiso externo no alcanza a este servidor a través de esa clave. |
-| Clave protegida con passphrase | Clave sin passphrase | Protege la clave si se copia el archivo. Coste: hay que introducirla o usar un agente SSH. |
+| Clave protegida con passphrase y 100 rondas KDF (`-a 100`) | Clave sin passphrase, rondas por defecto | Protege la clave si se copia el archivo y encarece los intentos de fuerza bruta contra la passphrase. Coste: hay que introducirla o usar un agente SSH, y el desbloqueo es algo más lento. |
 | Snapshot antes del cambio | Ningún punto de restauración | Ofrece una vía de vuelta si la configuración deja la VM inaccesible. |
 | Probar la clave antes de desactivar contraseñas | Aplicar todo de una vez | Evita el bloqueo del acceso remoto. |
-| Archivo propio `01-home-soc-hardening.conf` | Editar `sshd_config` o `50-cloud-init.conf` | El prefijo `01-` se procesa antes que `50-`, por lo que sus valores prevalecen. Agrupa los cambios en un archivo identificable y fácil de revertir, y no depende de un archivo asociado a cloud-init. |
+| Archivo propio `01-home-soc-hardening.conf` | Editar `sshd_config` o `50-cloud-init.conf`, o usar un prefijo posterior como `99-` | El prefijo `01-` se procesa antes que `50-`, por lo que sus valores prevalecen. Agrupa los cambios en un archivo identificable y fácil de revertir, y no depende de un archivo asociado a cloud-init. |
 | Declarar `KbdInteractiveAuthentication no` | Confiar en el valor existente | Cierra la otra vía por la que podría solicitarse una contraseña y deja la intención explícita. |
 | `PermitRootLogin no` | `prohibit-password` | La administración se hace con `socadmin` y no se necesita acceso SSH directo como `root`. También bloquea el acceso con claves. |
 | Secuencia `sshd -t`, `sshd -T`, reinicio y pruebas | Reiniciar directamente | Detecta errores antes de aplicar el cambio y valida primero la configuración y después el comportamiento. |
@@ -322,12 +368,12 @@ Las decisiones son hechos del laboratorio. Las alternativas y justificaciones so
 
 | Comprobación | Tipo | Equipo | Comando o método | Resultado obtenido |
 |---|---|---|---|---|
-| Clave antes del cambio | Positiva | MacBook Pro | No registrado | Autenticación correcta |
+| Clave antes del cambio | Positiva | MacBook Pro | `ssh -i ... 'whoami && hostname'` (sección 4.3) | `socadmin` y `soc-wazuh-server` |
 | Sintaxis de la configuración | Configuración | VM | `sudo sshd -t` | Sin errores |
-| Valores efectivos | Configuración | VM | `sudo sshd -T` | Los cuatro valores esperados |
-| Reinicio del servicio | Aplicación | VM | Reinicio de `ssh.service` (comando no registrado) | Realizado |
-| Clave después del reinicio | Positiva | MacBook Pro | Nueva conexión SSH (comando no registrado) | Conexión exitosa |
-| Contraseña después del reinicio | Negativa | No registrado | Prueba controlada (comando no registrado) | Rechazada |
+| Valores efectivos | Configuración | VM | `sudo sshd -T` filtrado con `grep -E` (sección 4.8) | Los cuatro valores esperados |
+| Reinicio del servicio | Aplicación | VM | `sudo systemctl restart ssh.service` | Realizado, con la sesión administrativa abierta |
+| Clave después del reinicio | Positiva | MacBook Pro | Segunda conexión SSH (comando no registrado) | Conexión exitosa |
+| Contraseña después del reinicio | Negativa | MacBook Pro | `ssh -o PubkeyAuthentication=no ...` (sección 4.11) | `Permission denied (publickey).` |
 
 ### 6.2 Qué demuestra cada comprobación
 
@@ -336,7 +382,7 @@ Las decisiones son hechos del laboratorio. Las alternativas y justificaciones so
 | `sshd -t` | Que la configuración es válida | Que se esté aplicando o que tenga el efecto deseado |
 | `sshd -T` | Los valores que resultan de la configuración en disco | Que el servicio en ejecución los esté usando |
 | Conexión con clave | Que se conserva el acceso administrativo | Que las contraseñas estén desactivadas |
-| Contraseña rechazada | Que el servicio rechazó ese intento | El comportamiento con `root`. La causa exacta tampoco puede documentarse sin el mensaje del cliente o los registros del servidor |
+| Contraseña rechazada | Que el servidor rechazó ese intento y solo permitió continuar con `publickey` | El comportamiento con `root`. Tampoco aporta la visión del servidor, porque sus registros no se han revisado |
 
 ### 6.3 Sin comprobar
 
@@ -355,7 +401,6 @@ Estos comandos **no se han ejecutado** en este hito. Se proponen para completar 
 | Comprobación | Equipo | Comando recomendado |
 |---|---|---|
 | Versión de OpenSSH | VM | `dpkg-query -W openssh-server` |
-| Directiva `Include` | VM | `grep -n '^Include' /etc/ssh/sshd_config` |
 | Propietario y permisos de la configuración | VM | `ls -l /etc/ssh/sshd_config.d/` |
 | Permisos de `~/.ssh` y `authorized_keys` | VM | `ls -ld ~/.ssh ~/.ssh/authorized_keys` |
 | Estado del servicio | VM | `systemctl status ssh.service` |
@@ -410,10 +455,10 @@ Recomendaciones:
 
 ### Completado y verificado por el estudiante
 
-- [x] Snapshot `baseline-before-ssh-hardening` creado antes del hardening.
 - [x] Par de claves Ed25519 específico del laboratorio, protegido con passphrase.
 - [x] Clave pública agregada a `~/.ssh/authorized_keys` en el servidor.
 - [x] Autenticación mediante claves probada.
+- [x] Snapshot `baseline-before-ssh-hardening` creado tras verificar la clave y antes del hardening.
 - [x] `PasswordAuthentication yes` identificado en `50-cloud-init.conf`.
 - [x] `01-home-soc-hardening.conf` creado con las cuatro directivas.
 - [x] `sudo sshd -t` finalizado sin errores.
@@ -437,7 +482,7 @@ SOC-WAZUH-SERVER ha pasado del acceso SSH por contraseña al acceso mediante una
 Limitaciones actuales:
 
 - `PermitRootLogin no` está confirmado en la configuración, pero no mediante una prueba de inicio de sesión.
-- Varios pasos se realizaron sin registrar el comando o la salida exactos.
+- Siguen sin registrar el comando de búsqueda de directivas, el de la segunda conexión por clave, el estado de la VM al crear el snapshot y el propietario y los permisos de `01-home-soc-hardening.conf`.
 - El hardening se limita a cuatro directivas de autenticación y acceso; no es un bastionado completo del servidor.
 - Las evidencias todavía no están incorporadas al repositorio.
 - La red NAT y la IP por DHCP siguen siendo provisionales.

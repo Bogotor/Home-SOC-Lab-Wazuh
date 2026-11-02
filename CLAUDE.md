@@ -174,7 +174,6 @@ Resumen a 2026-11-02, último commit `dd76fe0`. Los datos de infraestructura pro
 
 **Documentación:**
 
-- `documentation/ssh-hardening.md`: sustituir los «No registrado» ya conocidos por lo realmente ejecutado: `ssh-keygen -t ed25519 -a 100`, instalación con `cat ... | ssh` (no `ssh-copy-id`), creación del archivo con `sudo tee`, `systemctl restart ssh.service`, sesión de recuperación abierta, prueba negativa desde macOS con su mensaje y orden del snapshot. Mantén los marcadores y no inventes lo que siga sin registrar.
 - `documentation/vm-02-setup.md`: registrar el snapshot `baseline-ubuntu-desktop-24.04.5`, todavía ausente.
 - Evidencias: ninguna publicada todavía. Incorporar a `evidence/screenshots/{vm-01,vm-02,ssh-hardening}/`, con el flujo de la sección 5, capturas de recursos, versiones, particionado, ICMP, snapshots, configuración efectiva de OpenSSH y pruebas positiva y negativa. Las capturas compartidas con otros asistentes no están disponibles aquí: pídelas o reproduce la verificación.
 
