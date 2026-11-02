@@ -101,6 +101,15 @@ Diferencia acción simulada, evento observado, alerta generada, interpretación 
 
 **Evidencias:** pocas, relevantes, reales y anonimizadas, en `evidence/screenshots/<hito>/`. Si una verificación se repite más tarde, indica la fecha y que es una repetición. No crees documentación ficticia para completar directorios.
 
+**Flujo para incorporar evidencias:**
+
+1. El estudiante guarda el material sin revisar en `evidence/_inbox/`, ignorada por Git. Tras clonar el repositorio hay que volver a crearla.
+2. Claude Code comprueba que demuestra lo previsto y busca datos sensibles en la imagen y en sus metadatos.
+3. Claude Code lo copia a su destino con un nombre descriptivo y actualiza la tabla de evidencias del documento. Si se recorta o se tapa algo, el documento lo indica.
+4. El estudiante hace la revisión final y autoriza el commit y el push.
+
+Las salidas de terminal se guardan preferiblemente como texto y las capturas se reservan para lo visual. Destino propuesto para el texto, sin aplicar todavía: `evidence/outputs/<hito>/`.
+
 ## 6. Git y GitHub
 
 Repositorio público `Bogotor/Home-SOC-Lab-Wazuh`, rama principal `main`.
@@ -167,12 +176,11 @@ Resumen a 2026-11-02, último commit `dd76fe0`. Los datos de infraestructura pro
 
 - `documentation/ssh-hardening.md`: sustituir los «No registrado» ya conocidos por lo realmente ejecutado: `ssh-keygen -t ed25519 -a 100`, instalación con `cat ... | ssh` (no `ssh-copy-id`), creación del archivo con `sudo tee`, `systemctl restart ssh.service`, sesión de recuperación abierta, prueba negativa desde macOS con su mensaje y orden del snapshot. Mantén los marcadores y no inventes lo que siga sin registrar.
 - `documentation/vm-02-setup.md`: registrar el snapshot `baseline-ubuntu-desktop-24.04.5`, todavía ausente.
-- `documentation/vm-01-setup.md`, INC-01: aclarar con el estudiante si la ISO se desconectó en ese momento o si ya estaba desconectada.
-- Evidencias: `evidence/` no existe. Crear `evidence/screenshots/{vm-01,vm-02,ssh-hardening}/` e incorporar capturas de recursos, versiones, particionado, ICMP, snapshots, configuración efectiva de OpenSSH y pruebas positiva y negativa. Las capturas compartidas con otros asistentes no están disponibles aquí: pídelas o reproduce la verificación.
+- Evidencias: ninguna publicada todavía. Incorporar a `evidence/screenshots/{vm-01,vm-02,ssh-hardening}/`, con el flujo de la sección 5, capturas de recursos, versiones, particionado, ICMP, snapshots, configuración efectiva de OpenSSH y pruebas positiva y negativa. Las capturas compartidas con otros asistentes no están disponibles aquí: pídelas o reproduce la verificación.
 
 **Seguridad:**
 
-- Crear `.gitignore` (no existe) antes de instalar Wazuh: `.env`, claves y certificados privados, credenciales, temporales de instalación, archivos generados y del sistema operativo, sin excluir configuraciones de ejemplo. No sustituye la revisión de secretos.
+- Revisar `.gitignore` al elegir la versión de Wazuh, por si genera otros archivos sensibles. No sustituye la revisión de secretos.
 - Revisar los puertos expuestos y definir la política de firewall.
 - Comprobar la persistencia del hardening y la recuperación por consola, y decidir cómo probar `PermitRootLogin no`.
 

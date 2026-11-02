@@ -1,0 +1,33 @@
+# Material de evidencias sin revisar: nunca se publica desde esta carpeta
+evidence/_inbox/
+
+# Secretos y credenciales
+.env
+.env.*
+credentials.*
+secrets.*
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ecdsa*
+id_ed25519*
+
+# Archivos que puede generar la instalación de Wazuh (nombres por confirmar según la versión)
+wazuh-install-files.tar
+wazuh-passwords.txt
+wazuh-certificates/
+
+# Temporales e imágenes de instalación
+*.iso
+*.tmp
+*.swp
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Las plantillas de ejemplo sí se versionan
+!*.example
+!*.example.*
