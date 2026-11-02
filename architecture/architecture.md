@@ -62,6 +62,8 @@ Almacenamiento: ext4 sobre LVM para el volumen raíz (`/` 50 GB), `/boot` 2 GB, 
 
 Procedimiento y verificaciones: [`documentation/vm-01-setup.md`](../documentation/vm-01-setup.md).
 
+Hardening de SSH: [`documentation/ssh-hardening.md`](../documentation/ssh-hardening.md).
+
 ### VM 2 — Endpoint Linux (SOC-LINUX-ENDPOINT)
 
 **Estado:** VM creada; Ubuntu Desktop instalado, actualizado y en funcionamiento. **Wazuh Agent todavía no está instalado.**
@@ -108,7 +110,7 @@ Configuración de red actual (provisional): las VM 1 y VM 2 utilizan la red NAT 
 | SOC-LINUX-ENDPOINT | `172.16.203.129` |
 
 Comprobaciones realizadas:
-- Acceso SSH a la VM 1 desde el anfitrión.
+- Acceso SSH a la VM 1 desde el anfitrión mediante clave Ed25519, con autenticación por contraseña rechazada en una prueba controlada.
 - Conectividad ICMP bidireccional entre la VM 1 y la VM 2 (0 % de pérdida, latencia media inferior a 1 ms).
 
 Sin comprobar:
@@ -142,7 +144,7 @@ Esta distribución también permite estudiar monitoreo de seguridad en Linux y W
 - Definir las direcciones IP del laboratorio.
 - Comprobar conectividad con el endpoint Windows físico (la conectividad ICMP entre VM 1 y VM 2 ya está comprobada).
 - Confirmar la compatibilidad de Wazuh Agent con Ubuntu 24.04 ARM64.
-- Aplicar hardening de SSH en el servidor (autenticación por claves).
+- Comprobar el comportamiento de `PermitRootLogin no` en la VM 1 (confirmado en la configuración, sin prueba directa de inicio de sesión como root).
 - Comprobar el estado del servidor SSH en la VM 2.
 - Verificar la sincronización horaria de ambas VM.
 - Medir el consumo real de recursos con ambas VM en funcionamiento.
@@ -153,7 +155,7 @@ Esta distribución también permite estudiar monitoreo de seguridad en Linux y W
 
 **Fase 2 — Preparación de infraestructura (en proceso).**
 
-- VM 1 (SOC-WAZUH-SERVER): Ubuntu Server instalado, actualizado, en funcionamiento y accesible por SSH desde el anfitrión.
+- VM 1 (SOC-WAZUH-SERVER): Ubuntu Server instalado, actualizado, en funcionamiento y accesible por SSH desde el anfitrión mediante clave.
 - Wazuh: todavía no instalado.
 - VM 2 (SOC-LINUX-ENDPOINT): Ubuntu Desktop instalado, actualizado, en funcionamiento y con conectividad ICMP con la VM 1. Wazuh Agent todavía no instalado.
 - Endpoint Windows: pendiente de incorporación.

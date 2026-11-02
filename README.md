@@ -53,12 +53,13 @@ Completado:
 - Inicialización del repositorio Git y publicación en GitHub.
 - Creación de la VM SOC-WAZUH-SERVER e instalación y validación inicial de Ubuntu Server 24.04.5 LTS ARM64 ([documentación](documentation/vm-01-setup.md)).
 - Creación de la VM SOC-LINUX-ENDPOINT e instalación y validación inicial de Ubuntu Desktop 24.04.5 LTS ARM64, con open-vm-tools y conectividad ICMP bidireccional con el servidor ([documentación](documentation/vm-02-setup.md)).
+- Hardening de SSH en SOC-WAZUH-SERVER: acceso mediante clave Ed25519 comprobado y autenticación por contraseña rechazada en una prueba controlada ([documentación](documentation/ssh-hardening.md)).
 
 Pendiente:
 - Validación definitiva de la arquitectura.
 - Configuración de red definitiva del laboratorio (actualmente NAT provisional con DHCP).
-- Hardening de SSH en el servidor (migración a autenticación por claves).
-- Incorporación de evidencias de las VM SOC-WAZUH-SERVER y SOC-LINUX-ENDPOINT.
+- Prueba del comportamiento de `PermitRootLogin no` en SOC-WAZUH-SERVER (confirmado en la configuración, sin prueba directa de inicio de sesión como root).
+- Incorporación de evidencias de las VM SOC-WAZUH-SERVER y SOC-LINUX-ENDPOINT y del hardening de SSH.
 - Instalación de Wazuh.
 - Instalación de Wazuh Agent en el endpoint Linux.
 - Incorporación del endpoint Windows.

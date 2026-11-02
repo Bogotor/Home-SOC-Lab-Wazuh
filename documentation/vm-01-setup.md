@@ -157,6 +157,8 @@ ssh socadmin@172.16.203.128
 
 **Resultado obtenido:** conexión remota correcta, con autenticación por contraseña.
 
+> **Actualización:** este resultado corresponde al estado de este hito. Posteriormente se aplicó el hardening de SSH: el acceso se realiza mediante clave y un intento controlado con contraseña fue rechazado. Ver [`ssh-hardening.md`](ssh-hardening.md).
+
 ## 4. Decisiones técnicas
 
 | Decisión | Alternativas | Justificación |
@@ -253,7 +255,7 @@ Recomendaciones:
 ## 8. Seguridad
 
 - La VM no está expuesta a Internet: se encuentra tras el NAT de VMware Fusion.
-- La autenticación SSH es por contraseña. La migración a claves y el hardening de SSH están pendientes.
+- Al cerrar este hito, la autenticación SSH era por contraseña. La migración a claves y el hardening de SSH se realizaron después: ver [`ssh-hardening.md`](ssh-hardening.md).
 - No se documentan contraseñas ni claves en este repositorio.
 
 ## 9. Estado del hito
@@ -278,19 +280,19 @@ Recomendaciones:
 - [ ] Verificar la sincronización horaria del sistema, necesaria para correlacionar eventos.
 - [ ] Definir la configuración de red definitiva y el direccionamiento IP del laboratorio.
 - [ ] Comprobar la conectividad entre el servidor y el endpoint Windows físico.
-- [ ] Hardening de SSH: autenticación por claves y desactivación del acceso por contraseña.
 - [ ] Confirmar la compatibilidad de la versión de Wazuh elegida con Ubuntu 24.04 ARM64.
 - [ ] Instalar Wazuh (Server, Indexer y Dashboard).
 
 > **Actualización:** el endpoint Linux (VM 2, SOC-LINUX-ENDPOINT), que figuraba aquí como pendiente, ya está creado, instalado y validado. La conectividad ICMP entre ambas VM está comprobada. Ver [`vm-02-setup.md`](vm-02-setup.md).
 
+> **Actualización:** el hardening de SSH, que figuraba aquí como pendiente, ya está aplicado: acceso mediante clave comprobado y contraseña rechazada en una prueba controlada. `PermitRootLogin no` está confirmado en la configuración, sin prueba directa de inicio de sesión como `root`. Ver [`ssh-hardening.md`](ssh-hardening.md).
+
 ## 10. Conclusiones y limitaciones
 
-La VM SOC-WAZUH-SERVER dispone de un sistema base Ubuntu Server instalado y en funcionamiento, actualizado, con almacenamiento ampliable mediante LVM y administración remota por SSH desde el anfitrión.
+La VM SOC-WAZUH-SERVER dispone de un sistema base Ubuntu Server instalado y en funcionamiento, actualizado, con almacenamiento ampliable mediante LVM y administración remota por SSH desde el anfitrión. El acceso SSH se endureció en un hito posterior ([`ssh-hardening.md`](ssh-hardening.md)).
 
 Limitaciones actuales:
 
 - La red NAT y la IP por DHCP son provisionales.
-- El acceso SSH sigue usando contraseña.
 - Las evidencias todavía no están incorporadas al repositorio.
 - **Wazuh todavía no está instalado**: el servidor aún no cumple su función en el laboratorio.
