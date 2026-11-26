@@ -259,6 +259,14 @@ Resultados confirmados durante la implementación. Cuando el comando exacto no q
 | Actualización del sistema | VM | Método no registrado | Actualizaciones aplicadas y reinicio realizado |
 | open-vm-tools | VM | Método no registrado | `open-vm-tools` y `open-vm-tools-desktop` 13.0.10 instalados; servicio activo |
 | Portapapeles compartido | MacBook Pro y VM | Prueba manual de copiar y pegar en ambos sentidos | Funciona en la sesión Wayland |
+| Sincronización horaria (2026-11-02, después del cierre del hito) | VM | `timedatectl` | `2026-11-02 14:11:29 UTC`; zona local UTC−3 (se omite su nombre); `System clock synchronized: yes`; `NTP service: active`; `RTC in local TZ: no` |
+| Recursos en reposo, sin Wazuh y con ambas VM encendidas (2026-11-02; la ocupación de `/` es una repetición) | VM | `nproc`, `uptime`, `free -h` y `df -h /` | 4 vCPU; carga media 0,06 / 0,02 / 0,00; memoria total 5,8 GiB y 4,3 GiB disponibles; swap de 4,0 GiB sin usar; `/` de 48 GB, con 11 GB usados y 35 GB disponibles (25 %) |
+
+`timedatectl` muestra la hora, la zona horaria y si la sincronización NTP está activa. Es importante en un endpoint: si la hora no es correcta, los eventos enviados a Wazuh no se podrán correlacionar bien con los del servidor. `System clock synchronized: yes` es lo que declara el sistema: no mide el desfase real (*offset*) ni identifica el servidor de hora, que no se han comprobado.
+
+La salida del servidor se tomó a continuación (`14:11:59 UTC`, 30 s después). Esa diferencia corresponde a ejecutar los comandos uno tras otro y no mide el desfase entre ambos relojes. El endpoint usa una zona local y el servidor UTC: al comparar sus eventos hay que convertirlos a la misma referencia.
+
+La medición de recursos es una línea base en reposo: no demuestra el comportamiento del sistema con Wazuh Agent en marcha. En esta VM, `sudo vgs` devolvió `orden no encontrada`, lo que es coherente con su almacenamiento sin LVM.
 
 ### 5.2 Comprobaciones complementarias recomendadas
 
@@ -269,23 +277,19 @@ Estos comandos **no se han ejecutado** (o su salida no quedó registrada) en est
 | Versión del sistema operativo | VM | `cat /etc/os-release` |
 | Hostname y arquitectura | VM | `hostnamectl` |
 | Tipo de sesión gráfica | VM | `echo $XDG_SESSION_TYPE` |
-| Memoria | VM | `free -h` |
-| Almacenamiento | VM | `lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINTS` y `df -h /` |
+| Almacenamiento | VM | `lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINTS` |
 | Dirección IP | VM | `ip -br address` |
 | Paquetes pendientes | VM | `apt list --upgradable` |
 | Reinicio pendiente | VM | `ls /run/reboot-required` |
 | Servicio open-vm-tools | VM | `systemctl status open-vm-tools` |
 | Versión de open-vm-tools | VM | `vmware-toolbox-cmd -v` |
-| Sincronización horaria | VM | `timedatectl` |
 | Servidor SSH | VM | `systemctl status ssh` |
 | Puertos a la escucha | VM | `sudo ss -tlnp` |
 
 Explicación de argumentos:
 
 - `echo $XDG_SESSION_TYPE`: muestra el tipo de sesión gráfica actual (`wayland` o `x11`).
-- `free -h`: muestra la memoria total, usada y disponible en unidades legibles.
 - `ls /run/reboot-required`: si el archivo existe, alguna actualización requiere reiniciar.
-- `timedatectl`: muestra la hora, la zona horaria y si la sincronización NTP está activa. Es importante en un endpoint: si la hora no es correcta, los eventos enviados a Wazuh no se podrán correlacionar bien con los del servidor.
 - `systemctl status ssh`: muestra el estado del servidor SSH. **Información técnica general (no verificada en este laboratorio):** a diferencia de Ubuntu Server, el instalador de Ubuntu Desktop no incluye el servidor OpenSSH (`openssh-server`) por defecto. **En esta VM su estado no se ha comprobado.** La arquitectura lo prevé para las prácticas de autenticación (LAB 01).
 - `ss -tlnp`: lista sockets TCP (`-t`) a la escucha (`-l`), en formato numérico (`-n`) y con el proceso asociado (`-p`, requiere `sudo`).
 
@@ -346,19 +350,20 @@ Recomendaciones:
 - [x] Actualizaciones aplicadas y reinicio realizado.
 - [x] `open-vm-tools` y `open-vm-tools-desktop` 13.0.10 instalados y servicio activo.
 - [x] Portapapeles compartido macOS–Ubuntu funcionando en Wayland.
+- [x] Sincronización horaria comprobada con `timedatectl` (2026-11-02).
+- [x] Recursos medidos en reposo y sin Wazuh (2026-11-02).
+- [x] Compatibilidad de Wazuh Agent 4.14.9 con Ubuntu 24.04 ARM64 confirmada en la documentación oficial, sin probar su instalación (2026-11-02).
 
 ### Pendiente
 
 - [ ] Verificar la firma GPG de `SHA256SUMS` (mejora recomendada).
 - [ ] Ejecutar las comprobaciones complementarias de la sección 5.2 y conservar sus salidas.
 - [ ] Incorporar las evidencias de la sección 7 en `evidence/screenshots/vm-02/`.
-- [ ] Verificar la sincronización horaria del sistema.
 - [ ] Comprobar el estado del servidor SSH y, si procede, instalarlo y configurarlo para el LAB 01.
-- [ ] Definir el direccionamiento IP definitivo del laboratorio.
-- [ ] Confirmar la compatibilidad de Wazuh Agent con Ubuntu 24.04 ARM64 para la versión de Wazuh elegida.
+- [ ] Mover la VM a la red `vmnet2` y comprobar su conectividad con el servidor ([`architecture.md`](../architecture/architecture.md), sección 4).
 - [ ] Instalar Wazuh Agent (después de instalar Wazuh en la VM 1).
 - [ ] Comprobar la conectividad TCP con los puertos del servidor Wazuh y el registro del agente.
-- [ ] Medir el consumo real de recursos con ambas VM en funcionamiento.
+- [ ] Medir el consumo real de recursos con Wazuh en funcionamiento.
 
 ## 10. Conclusiones y limitaciones
 

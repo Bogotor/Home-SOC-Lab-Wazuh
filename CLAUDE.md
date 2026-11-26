@@ -134,15 +134,19 @@ Repositorio público `Bogotor/Home-SOC-Lab-Wazuh`, rama principal `main`.
 | Equipo | Características | Función | Estado |
 |---|---|---|---|
 | MacBook Pro | Apple M5 Pro ARM64, 48 GB, macOS, VMware Fusion Professional 26H1u1 (build 2689522), Ghostty, VS Code, GitHub CLI, Homebrew | Anfitrión de las VM, cliente SSH, administración, documentación y acceso futuro al Dashboard | En uso |
-| Mini PC GMKtec NUCBOX G3 PLUS | Intel N150 x86-64, 4 núcleos, 16 GB, SSD 512 GB, **Windows 11 Pro** (no Ubuntu) | Endpoint físico Windows. No virtualiza Wazuh en la etapa inicial | Wazuh Agent sin instalar |
 | VM SOC-WAZUH-SERVER | Hostname `soc-wazuh-server`, usuario `socadmin`, Ubuntu Server 24.04.5 LTS ARM64, 4 vCPU, 12 GiB, disco dinámico de 60 GB | Wazuh Server, Indexer y Dashboard | Ubuntu actualizado y SSH endurecido. Wazuh sin instalar |
 | VM SOC-LINUX-ENDPOINT | Hostname `soc-linux-endpoint`, usuario `labuser`, Ubuntu Desktop 24.04.5 LTS ARM64, GNOME/Wayland, 4 vCPU, 6 GiB, NVMe de 50 GB, ext4 sin LVM, open-vm-tools 13.0.10 | Aprendizaje diario de Linux y futuro endpoint monitorizado | Actualizaciones aplicadas, sin verificación final concluyente. Wazuh Agent sin instalar |
+| VM SOC-WINDOWS-ENDPOINT (prevista) | Windows 11 para ARM en VMware Fusion; recursos por definir | Endpoint Windows monitorizado | Sin crear. Se creará después de instalar Wazuh central |
+
+**Mini PC retirado:** el GMKtec NUCBOX G3 PLUS (Windows 11 Pro x64) dejó de estar disponible en noviembre de 2026, antes de incorporarse al laboratorio. Lo sustituye la VM Windows. No lo planifiques como equipo disponible.
 
 **Almacenamiento del servidor:** EFI ≈ 1 GB, `/boot` ≈ 2 GB, `/` ≈ 50 GB en ext4 sobre LVM y ≈ 6,9 GB libres en el grupo LVM. Los 60 GB del disco virtual no están todos disponibles en `/`: comprueba el espacio real antes de instalar Wazuh, con especial atención al Indexer.
 
-**Red:** ambas VM usan NAT de VMware Fusion con DHCP. Sus IP observadas (`architecture/architecture.md`, sección 4) no son estáticas. El ICMP bidireccional está comprobado, pero un `ping` no demuestra que los puertos TCP de Wazuh estén disponibles.
+**Red:** todas las VM irán a `vmnet2`, una red NAT personalizada de VMware Fusion (`172.16.50.0/24`; Mac `.1`, puerta de enlace `.2`, DHCP `.128`–`.254`), sin reenvío de puertos. El servidor ya está en ella con `172.16.50.128`, asignada por DHCP y sin reservar (2026-11-04). El endpoint Linux sigue en la NAT inicial (`172.16.203.129`) hasta moverlo, así que de momento no alcanza al servidor. Detalle en `architecture/architecture.md`, sección 4. Un `ping` no demuestra que los puertos TCP de Wazuh estén disponibles.
 
-**Problema abierto:** el mini PC está en la red local física y no se puede asumir que alcance la IP NAT del servidor. Antes de instalar su agente hay que diseñar la conectividad (Bridged, rutas o reenvío de puertos), fijar un direccionamiento estable, revisar el firewall, probar TCP desde Windows y evitar exponer servicios administrativos.
+**Decisión de red (2026-11-26):** al virtualizar el endpoint Windows, el reenvío de puertos diseñado para el mini PC queda descartado y nunca llegó a configurarse. No expongas servicios del laboratorio en la red local física.
+
+**Riesgo abierto:** Wazuh no publica un agente ARM64 para Windows. El MSI «32/64 bits» depende de la emulación x64 de Windows 11 para ARM y debe probarse antes de planificar laboratorios de Windows sobre él.
 
 **Snapshots** (vistos en VMware Fusion; restauración sin probar; no sustituyen copias de seguridad):
 
@@ -153,7 +157,7 @@ Repositorio público `Bogotor/Home-SOC-Lab-Wazuh`, rama principal `main`.
 
 ## 9. Estado actual
 
-Resumen a 2026-11-02, último commit `dd76fe0`. Los datos de infraestructura proceden de lo registrado por el estudiante: Claude Code no los comprueba directamente y todavía no hay evidencias publicadas.
+Resumen a 2026-11-26, último commit `1a55cef`. Los datos de infraestructura proceden de lo registrado por el estudiante: Claude Code no los comprueba directamente y todavía no hay evidencias publicadas.
 
 **Fase actual: 2 — Preparación de infraestructura (en proceso).** Fases anteriores: 0 (Diagnóstico) y 1 (Fundamentos SOC y arquitectura). No cambies la numeración sin revisar antes el plan.
 
@@ -165,6 +169,9 @@ Resumen a 2026-11-02, último commit `dd76fe0`. Los datos de infraestructura pro
 - ICMP bidireccional entre VM sin pérdida. Portapapeles compartido funcionando en Wayland.
 - Snapshots de ambas VM creados.
 - Hardening de la autenticación SSH del servidor (`documentation/ssh-hardening.md`): clave Ed25519 específica con passphrase y `/etc/ssh/sshd_config.d/01-home-soc-hardening.conf` con `PubkeyAuthentication yes`, `PasswordAuthentication no`, `KbdInteractiveAuthentication no` y `PermitRootLogin no`. El prefijo `01-` se eligió porque `50-cloud-init.conf` contenía `PasswordAuthentication yes` y `sshd` conserva el primer valor. Comprobado con `sshd -t`, `sshd -T`, una conexión por clave y un intento con contraseña rechazado (`Permission denied (publickey).`).
+- Comprobaciones previas a Wazuh (2026-11-02), registradas en `vm-01-setup.md` y `vm-02-setup.md`: hora y NTP en ambas VM, estado de systemd del servidor, recursos en reposo de ambas VM y del Mac, arquitectura `arm64` y puertos de Wazuh libres en el servidor.
+- Decisiones (2026-11-02): no ampliar `/` antes de instalar, con el espacio libre de LVM como reserva, e instalar Wazuh 4.14.9 con el asistente por etapas. La compatibilidad ARM64 está documentada, pero no probada. `.gitignore` cubre `wazuh-install-files.tar`, que genera ese método.
+- Red `vmnet2` creada y servidor movido a ella (2026-11-04).
 
 **Límites del hardening:** sin prueba directa de acceso como `root`, sin comprobar la persistencia tras reiniciar la VM, sin probar la recuperación por consola, sin auditoría integral de OpenSSH y sin política de firewall. Es un endurecimiento de la autenticación SSH, no un bastionado completo del servidor.
 
@@ -179,32 +186,30 @@ Resumen a 2026-11-02, último commit `dd76fe0`. Los datos de infraestructura pro
 
 **Seguridad:**
 
-- Revisar `.gitignore` al elegir la versión de Wazuh, por si genera otros archivos sensibles. No sustituye la revisión de secretos.
 - Revisar los puertos expuestos y definir la política de firewall.
 - Comprobar la persistencia del hardening y la recuperación por consola, y decidir cómo probar `PermitRootLogin no`.
 
 **Infraestructura:**
 
-- Verificar fecha, hora y sincronización NTP en ambas VM.
-- Medir RAM, CPU y almacenamiento reales con ambas VM en funcionamiento.
-- Confirmar en la documentación oficial vigente la compatibilidad ARM64 de la versión elegida: Server, Indexer, Dashboard, agente, paquetes, instalador y requisitos. No asumas que un paquete AMD64 funciona en ARM64.
-- Definir la estrategia de red para Windows y el direccionamiento estable.
+- Reservar la IP fija del servidor en `vmnet2` y mover el endpoint Linux a esa red.
 - Comprobar el estado del servidor SSH en la VM endpoint.
+- VM Windows: confirmar los requisitos de Windows 11 para ARM en Fusion 26H1 y la licencia, crearla en `vmnet2` y probar Wazuh Agent en ella.
+- Medir de nuevo los recursos con Wazuh en marcha y con la VM Windows.
 
 ## 11. Hoja de ruta
 
 **Próximo hito: Wazuh central.** No se instala sin autorización explícita. Orden previsto:
 
-1. Cerrar las correcciones documentales prioritarias.
-2. Verificar el estado del servidor, la hora y NTP.
-3. Medir RAM, CPU y almacenamiento.
-4. Confirmar la compatibilidad ARM64 y revisar las opciones de instalación y sus riesgos.
-5. Definir la estrategia de red y el acceso seguro.
+1. Cerrar las correcciones documentales prioritarias (aplazado).
+2. Verificar el estado del servidor, la hora y NTP (hecho).
+3. Medir RAM, CPU y almacenamiento (hecho).
+4. Confirmar la compatibilidad ARM64 y revisar las opciones de instalación y sus riesgos (hecho).
+5. Definir la estrategia de red y el acceso seguro (en curso: falta reservar la IP del servidor y mover el endpoint Linux a `vmnet2`).
 6. Confirmar el punto de recuperación previo a cambios mayores.
 7. Instalar los componentes centrales y validar cada servicio, Dashboard, API y conectividad.
 8. Documentar el procedimiento, incorporar evidencias y registrar un commit aprobado.
 
-Después: incorporar los agentes Linux y Windows y validar la recepción de eventos.
+Después: incorporar el agente Linux, crear la VM Windows 11 para ARM, probar su agente y validar la recepción de eventos.
 
 **Laboratorios planificados (ninguno realizado):**
 

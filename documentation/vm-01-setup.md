@@ -168,9 +168,11 @@ ssh socadmin@172.16.203.128
 | Disco de 60 GB (propuesta inicial: 80 GB) | 80 GB | Tamaño ajustado a un laboratorio con poco volumen de datos. Se puede ampliar mediante el espacio libre en LVM o aumentando el disco virtual. |
 | Disco sin preasignación | Disco preasignado | En el anfitrión solo ocupa el espacio usado. Puede crecer hasta 60 GB, por lo que conviene vigilar el espacio libre en macOS. |
 | LVM con ext4 | Particiones directas, otros sistemas de archivos | LVM permite redimensionar volúmenes. ext4 es el sistema de archivos por defecto del instalador y está ampliamente documentado. |
-| Red NAT inicial | Bridged, red solo de anfitrión (host-only) | Permite acceso a Internet para actualizaciones sin exponer la VM en la red local. **Limitación:** no está comprobado que el endpoint Windows físico pueda alcanzar el servidor en este modo. Se revisará antes de incorporar agentes. |
+| Red NAT inicial | Bridged, red solo de anfitrión (host-only) | Permite acceso a Internet para actualizaciones sin exponer la VM en la red local. **Limitación:** no está comprobado que el endpoint Windows físico pueda alcanzar el servidor en este modo. Se revisará antes de incorporar agentes. **Actualización:** el endpoint Windows físico se retiró y la red pasó a `vmnet2`; ver [`architecture.md`](../architecture/architecture.md), sección 4. |
 | IP obtenida por DHCP | IP estática, reserva DHCP | Suficiente para la instalación. La IP no se considera permanente: el direccionamiento definitivo está pendiente. |
 | Hostname en minúsculas | Mayúsculas, como el nombre de la VM | Convención habitual en sistemas Linux. El nombre de la VM en VMware (`SOC-WAZUH-SERVER`) es independiente del hostname. |
+| No ampliar `/` antes de instalar Wazuh (2026-11-02) | Ampliar `/` con el espacio libre de LVM; aumentar el disco virtual | `/` tiene 40 GB disponibles, por debajo de los 50 GB que la [guía de inicio rápido](https://documentation.wazuh.com/current/quickstart.html) indica para 1 a 25 agentes y 90 días de alertas. El laboratorio prevé unos 3 sistemas monitorizados: la [guía del Indexer](https://documentation.wazuh.com/current/installation-guide/wazuh-indexer/index.html) permite estimar unos 6,7 GB de alertas en 90 días, sin contar lo que ocupa Wazuh. El espacio libre de LVM queda como reserva. **Pendiente tras instalar:** definir la retención, vigilar la ocupación y repetir la medición. |
+| Instalar Wazuh 4.14.9 con el asistente por etapas (2026-11-02; instalación pendiente) | Asistente todo en uno (`wazuh-install.sh -a`); instalación paso a paso | Permite validar cada componente por separado y aprender el orden real (Indexer, Server, Dashboard), mientras el asistente genera certificados y contraseñas. `wazuh-install-files.tar` contiene secretos y no debe llegar al repositorio. |
 
 ## 5. Verificaciones y resultados
 
@@ -189,6 +191,22 @@ Comandos ejecutados y resultados confirmados durante la implementación. Cuando 
 | Actualización de paquetes | VM | `sudo apt update`, `apt list --upgradable` y `sudo apt upgrade` | Sin actualizaciones pendientes tras la actualización |
 | Reinicio pendiente | VM | Comprobación de `/run/reboot-required` | El sistema no solicita reinicio |
 | Acceso SSH desde el anfitrión | MacBook Pro | `ssh socadmin@172.16.203.128` (Ghostty) | Conexión remota correcta con contraseña |
+| Sincronización horaria (2026-11-02, después del cierre del hito) | VM | `timedatectl` | `2026-11-02 14:11:59 UTC`; zona `Etc/UTC`; `System clock synchronized: yes`; `NTP service: active`; `RTC in local TZ: no` |
+| Estado de systemd (2026-11-02, después del cierre del hito) | VM | `systemctl is-system-running` y `systemctl --failed --no-pager` | `running`; `0 loaded units listed` |
+| Recursos en reposo, sin Wazuh y con ambas VM encendidas (2026-11-02) | VM | `nproc`, `uptime` y `free -h` | 4 vCPU; carga media 0,00 / 0,00 / 0,00; memoria total 11 GiB según `free -h` y 11 GiB disponibles; swap de 4,0 GiB sin usar |
+| Almacenamiento real (2026-11-02, repetición) | VM | `df -h /` y `sudo vgs` | `/` de 49 GB, con 6,8 GB usados y 40 GB disponibles (15 %); `ubuntu-vg`: `VSize` `<56.95g`, `VFree` `<6.95g` |
+| Arquitectura (2026-11-02) | VM | `dpkg --print-architecture` y `uname -m` | `arm64` y `aarch64` |
+| Puertos TCP a la escucha (2026-11-02) | VM | `sudo ss -tlnp` | TCP 22 en todas las interfaces (`sshd`); TCP 53 solo en `127.0.0.53` y `127.0.0.54` (`systemd-resolve`); ningún proceso en los puertos de Wazuh 443, 1514, 1515, 1516, 9200, 9300 y 55000 |
+
+`timedatectl` muestra la hora del sistema, la zona horaria y si la sincronización NTP está activa. `System clock synchronized: yes` es lo que declara el sistema: no mide el desfase real (*offset*) ni identifica el servidor de hora, que no se han comprobado.
+
+`systemctl is-system-running` resume el estado global del sistema, `systemctl --failed` lista las units fallidas y `--no-pager` muestra la salida sin paginador. El resultado refleja solo ese momento: no descarta errores pasados ni demuestra que haya recursos suficientes. **Información técnica general (no verificada en este laboratorio):** un servicio detenido de forma ordenada queda `inactive`, no `failed`, por lo que estos comandos no lo detectan. Para comprobar un servicio concreto hay que consultarlo directamente, por ejemplo con `systemctl is-active <servicio>`.
+
+`nproc` muestra las vCPU disponibles, `uptime` el tiempo encendido y la carga media, `free -h` la memoria y la swap, `df -h /` la ocupación de `/` y `sudo vgs` el espacio libre en el grupo LVM. La medición es una línea base en reposo: no demuestra el comportamiento del sistema con el Indexer en marcha.
+
+`dpkg --print-architecture` y `uname -m` muestran la misma arquitectura con los nombres que usan Debian y el kernel. `ss -tlnp` lista sockets TCP (`-t`) a la escucha (`-l`), en formato numérico (`-n`) y con el proceso asociado (`-p`, requiere `sudo`). Los puertos se compararon con la lista del instalador de Wazuh 4.14. La salida refleja solo ese momento y no evalúa el firewall.
+
+**Compatibilidad de Wazuh 4.14.9 (2026-11-02):** la [guía de inicio rápido](https://documentation.wazuh.com/current/quickstart.html) admite Ubuntu 24.04 y ARM64 para los componentes centrales. La [lista de paquetes](https://documentation.wazuh.com/current/installation-guide/packages-list.html) incluye Indexer, Manager y Dashboard para `arm64`, y el servidor de paquetes respondió HTTP 200 a una consulta de cabeceras de cada uno, sin descargarlos. Es compatibilidad documentada: su funcionamiento en esta VM se comprobará al instalar.
 
 ### 5.2 Comprobaciones complementarias recomendadas
 
@@ -198,17 +216,11 @@ Estos comandos **no se han ejecutado** en este hito. Se proponen para completar 
 |---|---|---|
 | Versión del sistema operativo | VM | `cat /etc/os-release` |
 | Hostname | VM | `hostnamectl` |
-| Espacio libre en el grupo LVM | VM | `sudo vgs` |
 | Dirección IP | VM | `ip -br address` |
-| Puertos a la escucha | VM | `sudo ss -tlnp` |
-| Sincronización horaria | VM | `timedatectl` |
 
 Explicación de argumentos:
 
-- `vgs`: resume los grupos de volúmenes LVM, incluido el espacio libre (`VFree`).
 - `ip -br address`: muestra las direcciones de red en formato breve.
-- `ss -tlnp`: lista sockets TCP (`-t`) a la escucha (`-l`), en formato numérico (`-n`) y con el proceso asociado (`-p`, requiere `sudo`).
-- `timedatectl`: muestra la hora del sistema, la zona horaria y si la sincronización NTP está activa.
 
 ## 6. Incidencias y resolución
 
@@ -271,17 +283,20 @@ Recomendaciones:
 - [x] Acceso SSH desde el anfitrión comprobado.
 - [x] Sistema actualizado, sin actualizaciones ni reinicios pendientes.
 - [x] Incidencia INC-01 resuelta.
+- [x] Sincronización horaria comprobada con `timedatectl` (2026-11-02).
+- [x] Estado de systemd comprobado, sin units fallidas (2026-11-02).
+- [x] Recursos medidos en reposo y sin Wazuh (2026-11-02).
+- [x] Compatibilidad de Wazuh 4.14.9 con Ubuntu 24.04 ARM64 confirmada en la documentación oficial, sin probar su instalación (2026-11-02).
 
 ### Pendiente
 
 - [ ] Verificar la firma GPG de `SHA256SUMS` (mejora recomendada).
 - [ ] Ejecutar las comprobaciones complementarias de la sección 5.2 y conservar sus salidas como evidencias.
 - [ ] Incorporar las evidencias de la sección 7 en `evidence/screenshots/vm-01/`.
-- [ ] Verificar la sincronización horaria del sistema, necesaria para correlacionar eventos.
-- [ ] Definir la configuración de red definitiva y el direccionamiento IP del laboratorio.
-- [ ] Comprobar la conectividad entre el servidor y el endpoint Windows físico.
-- [ ] Confirmar la compatibilidad de la versión de Wazuh elegida con Ubuntu 24.04 ARM64.
+- [ ] Reservar la IP fija del servidor en la red `vmnet2`.
 - [ ] Instalar Wazuh (Server, Indexer y Dashboard).
+
+> **Actualización (2026-11-04):** el servidor se movió a la red NAT personalizada `vmnet2` y su IP actual es `172.16.50.128`, asignada por DHCP. Las referencias a `172.16.203.128` de este documento corresponden a la red inicial. El endpoint Windows físico, que figuraba aquí como pendiente, se retiró el 2026-11-26 y se sustituirá por una VM. Ver [`architecture.md`](../architecture/architecture.md), sección 4.
 
 > **Actualización:** el endpoint Linux (VM 2, SOC-LINUX-ENDPOINT), que figuraba aquí como pendiente, ya está creado, instalado y validado. La conectividad ICMP entre ambas VM está comprobada. Ver [`vm-02-setup.md`](vm-02-setup.md).
 
