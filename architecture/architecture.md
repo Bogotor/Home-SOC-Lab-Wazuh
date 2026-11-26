@@ -132,19 +132,19 @@ Con todas las VM en la misma red, los agentes alcanzan directamente al servidor 
 | Máquina | Red | IP | Estado |
 |---|---|---|---|
 | SOC-WAZUH-SERVER | `vmnet2` | `172.16.50.10` | Fija: reserva DHCP y MAC estática (2026-11-26) |
-| SOC-LINUX-ENDPOINT | NAT inicial (`172.16.203.0/24`) | `172.16.203.129` | Pendiente de mover a `vmnet2` |
+| SOC-LINUX-ENDPOINT | `vmnet2` | `172.16.50.129` | Asignada por DHCP, sin reserva (2026-11-26) |
 | SOC-WINDOWS-ENDPOINT | `vmnet2` (prevista) | — | Sin crear |
 
-Mientras la VM 2 siga en la NAT inicial, no puede alcanzar a la VM 1 (inferido por estar en redes distintas, sin comprobar).
+La VM 2 no tiene reserva: los agentes inician la conexión hacia el servidor y Wazuh identifica cada agente por su ID y su nombre, no por su IP. Si un laboratorio necesita conectarse a la VM 2 con una IP estable, se le añadirá una reserva.
 
 Comprobaciones realizadas:
 - Acceso SSH a la VM 1 desde el anfitrión mediante clave Ed25519, con autenticación por contraseña rechazada en una prueba controlada.
 - Conectividad ICMP bidireccional entre la VM 1 y la VM 2 cuando ambas estaban en la NAT inicial (0 % de pérdida, latencia media inferior a 1 ms).
 - VM 1 en `vmnet2` (2026-11-04): IP `172.16.50.128`, ruta por defecto por `172.16.50.2`, `ping` a `ubuntu.com` con 0 % de pérdida y acceso SSH desde el anfitrión con la nueva IP.
 - VM 1 con IP fija (2026-11-26): MAC estática `00:50:56:00:50:10` e IPv4 `172.16.50.10/24` comprobadas en la VM, y SSH por clave correcto con contraseña rechazada en la nueva IP. Detalle en [`documentation/vm-01-setup.md`](../documentation/vm-01-setup.md).
+- VM 2 en `vmnet2` (2026-11-26): IP `172.16.50.129` por DHCP, ruta por defecto por `172.16.50.2`, `ping` a la VM 1 con 0 % de pérdida (0,476 ms de media), ARP resuelve la MAC estática de la VM 1 y `ping` a `ubuntu.com` con 0 % de pérdida. Detalle en [`documentation/vm-02-setup.md`](../documentation/vm-02-setup.md).
 
 Sin comprobar:
-- Conectividad de la VM 2 con la VM 1 en `vmnet2`.
 - Conectividad TCP de los endpoints con los puertos de Wazuh (los servicios todavía no existen).
 
 ## 5. Justificación de la arquitectura
@@ -168,7 +168,7 @@ Esta distribución también permite estudiar monitoreo de seguridad en Linux y W
 ## 7. Validaciones pendientes
 
 - Comprobar al instalar la compatibilidad ARM64 documentada de Wazuh 4.14.9.
-- Mover la VM 2 a `vmnet2` y comprobar su conectividad con la VM 1.
+- Definir la política de firewall de la VM 1 después de instalar Wazuh, sobre los puertos que abra realmente.
 - Comprobar el comportamiento de `PermitRootLogin no` en la VM 1 (confirmado en la configuración, sin prueba directa de inicio de sesión como root).
 - Comprobar el estado del servidor SSH en la VM 2.
 - Crear la VM 3: confirmar los requisitos de Windows 11 para ARM en Fusion 26H1 y disponer de licencia.
@@ -186,7 +186,7 @@ Esta distribución también permite estudiar monitoreo de seguridad en Linux y W
 - Wazuh: todavía no instalado. Versión prevista: 4.14.9, con el asistente por etapas. Compatibilidad con ARM64 documentada, sin probar su instalación.
 - VM 2 (SOC-LINUX-ENDPOINT): Ubuntu Desktop instalado, actualizado, en funcionamiento y con conectividad ICMP con la VM 1. Wazuh Agent todavía no instalado.
 - Endpoint Windows: el mini PC dejó de estar disponible. Se sustituirá por una VM con Windows 11 para ARM en `vmnet2`, después de instalar Wazuh central.
-- Red: `vmnet2` creada (2026-11-04). La VM 1 ya está en ella con IP fija `172.16.50.10` (2026-11-26); la VM 2 sigue en la NAT inicial.
+- Red: `vmnet2` creada (2026-11-04). La VM 1 ya está en ella con IP fija `172.16.50.10` (2026-11-26); la VM 2 también, con `172.16.50.129` por DHCP (2026-11-26).
 - Sincronización horaria: comprobada en la VM 1 y la VM 2 con `timedatectl` (2026-11-02), sin medir el desfase real.
 - Recursos: medidos en reposo, sin Wazuh y con ambas VM encendidas (2026-11-02). El detalle está en los documentos de cada VM. En el MacBook Pro: 597 GiB de disco disponibles y 72 % de memoria libre.
 - Almacenamiento de la VM 1: se mantiene sin ampliar antes de instalar Wazuh, con el espacio libre de LVM como reserva. La decisión está justificada en [`documentation/vm-01-setup.md`](../documentation/vm-01-setup.md).

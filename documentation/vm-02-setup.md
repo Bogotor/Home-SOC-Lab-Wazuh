@@ -261,12 +261,17 @@ Resultados confirmados durante la implementación. Cuando el comando exacto no q
 | Portapapeles compartido | MacBook Pro y VM | Prueba manual de copiar y pegar en ambos sentidos | Funciona en la sesión Wayland |
 | Sincronización horaria (2026-11-02, después del cierre del hito) | VM | `timedatectl` | `2026-11-02 14:11:29 UTC`; zona local UTC−3 (se omite su nombre); `System clock synchronized: yes`; `NTP service: active`; `RTC in local TZ: no` |
 | Recursos en reposo, sin Wazuh y con ambas VM encendidas (2026-11-02; la ocupación de `/` es una repetición) | VM | `nproc`, `uptime`, `free -h` y `df -h /` | 4 vCPU; carga media 0,06 / 0,02 / 0,00; memoria total 5,8 GiB y 4,3 GiB disponibles; swap de 4,0 GiB sin usar; `/` de 48 GB, con 11 GB usados y 35 GB disponibles (25 %) |
+| Red `vmnet2` (2026-11-26) | VM | `ip -br address` e `ip route` | `172.16.50.129/24` por DHCP, sin reserva; ruta por defecto por `172.16.50.2` |
+| VM 2 → servidor en `vmnet2` (2026-11-26) | VM 2 | `ping -c 3 172.16.50.10` e `ip neigh show 172.16.50.10` | 0 % de pérdida, 0,476 ms de media, `ttl=64`; ARP resuelve la MAC estática del servidor (`00:50:56:00:50:10`, `REACHABLE`) |
+| Internet y DNS en `vmnet2` (2026-11-26) | VM | `ping -c 3 ubuntu.com` | 0 % de pérdida |
 
 `timedatectl` muestra la hora, la zona horaria y si la sincronización NTP está activa. Es importante en un endpoint: si la hora no es correcta, los eventos enviados a Wazuh no se podrán correlacionar bien con los del servidor. `System clock synchronized: yes` es lo que declara el sistema: no mide el desfase real (*offset*) ni identifica el servidor de hora, que no se han comprobado.
 
 La salida del servidor se tomó a continuación (`14:11:59 UTC`, 30 s después). Esa diferencia corresponde a ejecutar los comandos uno tras otro y no mide el desfase entre ambos relojes. El endpoint usa una zona local y el servidor UTC: al comparar sus eventos hay que convertirlos a la misma referencia.
 
 La medición de recursos es una línea base en reposo: no demuestra el comportamiento del sistema con Wazuh Agent en marcha. En esta VM, `sudo vgs` devolvió `orden no encontrada`, lo que es coherente con su almacenamiento sin LVM.
+
+**Cambio de red (2026-11-26):** el adaptador de la VM pasó de la NAT inicial a la red personalizada `vmnet2`, y NetworkManager obtuvo la nueva IP por DHCP. La VM no tiene reserva: los agentes inician la conexión hacia el servidor y Wazuh identifica cada agente por su ID y su nombre, no por su IP. Las referencias a `172.16.203.x` de este documento corresponden a la red inicial. `ttl=64` en las respuestas del servidor encaja con una comunicación directa en la misma subred, sin routers intermedios.
 
 ### 5.2 Comprobaciones complementarias recomendadas
 
@@ -353,6 +358,7 @@ Recomendaciones:
 - [x] Sincronización horaria comprobada con `timedatectl` (2026-11-02).
 - [x] Recursos medidos en reposo y sin Wazuh (2026-11-02).
 - [x] Compatibilidad de Wazuh Agent 4.14.9 con Ubuntu 24.04 ARM64 confirmada en la documentación oficial, sin probar su instalación (2026-11-02).
+- [x] VM movida a la red `vmnet2`, con conectividad con el servidor e Internet comprobada (2026-11-26).
 
 ### Pendiente
 
@@ -360,7 +366,6 @@ Recomendaciones:
 - [ ] Ejecutar las comprobaciones complementarias de la sección 5.2 y conservar sus salidas.
 - [ ] Incorporar las evidencias de la sección 7 en `evidence/screenshots/vm-02/`.
 - [ ] Comprobar el estado del servidor SSH y, si procede, instalarlo y configurarlo para el LAB 01.
-- [ ] Mover la VM a la red `vmnet2` y comprobar su conectividad con el servidor ([`architecture.md`](../architecture/architecture.md), sección 4).
 - [ ] Instalar Wazuh Agent (después de instalar Wazuh en la VM 1).
 - [ ] Comprobar la conectividad TCP con los puertos del servidor Wazuh y el registro del agente.
 - [ ] Medir el consumo real de recursos con Wazuh en funcionamiento.
