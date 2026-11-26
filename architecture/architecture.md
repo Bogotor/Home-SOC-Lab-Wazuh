@@ -120,6 +120,7 @@ Todas las VM del laboratorio se conectarán a `vmnet2`, una red NAT personalizad
 | MacBook Pro en la red | `172.16.50.1` |
 | Puerta de enlace NAT | `172.16.50.2` |
 | Rango DHCP | `172.16.50.128` a `172.16.50.254` |
+| Reservas DHCP | `172.16.50.10` para la VM 1, fuera del rango dinámico y asociada a su MAC estática |
 | Reenvío de puertos | Ninguno |
 
 Con todas las VM en la misma red, los agentes alcanzan directamente al servidor y no hace falta reenviar puertos. Ningún servicio queda expuesto en la red local física: el Dashboard y la API solo son accesibles desde el MacBook Pro y las VM.
@@ -130,7 +131,7 @@ Con todas las VM en la misma red, los agentes alcanzan directamente al servidor 
 
 | Máquina | Red | IP | Estado |
 |---|---|---|---|
-| SOC-WAZUH-SERVER | `vmnet2` | `172.16.50.128` | Asignada por DHCP, sin reservar (2026-11-04) |
+| SOC-WAZUH-SERVER | `vmnet2` | `172.16.50.10` | Fija: reserva DHCP y MAC estática (2026-11-26) |
 | SOC-LINUX-ENDPOINT | NAT inicial (`172.16.203.0/24`) | `172.16.203.129` | Pendiente de mover a `vmnet2` |
 | SOC-WINDOWS-ENDPOINT | `vmnet2` (prevista) | — | Sin crear |
 
@@ -140,6 +141,7 @@ Comprobaciones realizadas:
 - Acceso SSH a la VM 1 desde el anfitrión mediante clave Ed25519, con autenticación por contraseña rechazada en una prueba controlada.
 - Conectividad ICMP bidireccional entre la VM 1 y la VM 2 cuando ambas estaban en la NAT inicial (0 % de pérdida, latencia media inferior a 1 ms).
 - VM 1 en `vmnet2` (2026-11-04): IP `172.16.50.128`, ruta por defecto por `172.16.50.2`, `ping` a `ubuntu.com` con 0 % de pérdida y acceso SSH desde el anfitrión con la nueva IP.
+- VM 1 con IP fija (2026-11-26): MAC estática `00:50:56:00:50:10` e IPv4 `172.16.50.10/24` comprobadas en la VM, y SSH por clave correcto con contraseña rechazada en la nueva IP. Detalle en [`documentation/vm-01-setup.md`](../documentation/vm-01-setup.md).
 
 Sin comprobar:
 - Conectividad de la VM 2 con la VM 1 en `vmnet2`.
@@ -166,7 +168,6 @@ Esta distribución también permite estudiar monitoreo de seguridad en Linux y W
 ## 7. Validaciones pendientes
 
 - Comprobar al instalar la compatibilidad ARM64 documentada de Wazuh 4.14.9.
-- Reservar una IP fija para la VM 1 en `vmnet2`.
 - Mover la VM 2 a `vmnet2` y comprobar su conectividad con la VM 1.
 - Comprobar el comportamiento de `PermitRootLogin no` en la VM 1 (confirmado en la configuración, sin prueba directa de inicio de sesión como root).
 - Comprobar el estado del servidor SSH en la VM 2.
@@ -185,7 +186,7 @@ Esta distribución también permite estudiar monitoreo de seguridad en Linux y W
 - Wazuh: todavía no instalado. Versión prevista: 4.14.9, con el asistente por etapas. Compatibilidad con ARM64 documentada, sin probar su instalación.
 - VM 2 (SOC-LINUX-ENDPOINT): Ubuntu Desktop instalado, actualizado, en funcionamiento y con conectividad ICMP con la VM 1. Wazuh Agent todavía no instalado.
 - Endpoint Windows: el mini PC dejó de estar disponible. Se sustituirá por una VM con Windows 11 para ARM en `vmnet2`, después de instalar Wazuh central.
-- Red: `vmnet2` creada (2026-11-04). La VM 1 ya está en ella; la VM 2 sigue en la NAT inicial.
+- Red: `vmnet2` creada (2026-11-04). La VM 1 ya está en ella con IP fija `172.16.50.10` (2026-11-26); la VM 2 sigue en la NAT inicial.
 - Sincronización horaria: comprobada en la VM 1 y la VM 2 con `timedatectl` (2026-11-02), sin medir el desfase real.
 - Recursos: medidos en reposo, sin Wazuh y con ambas VM encendidas (2026-11-02). El detalle está en los documentos de cada VM. En el MacBook Pro: 597 GiB de disco disponibles y 72 % de memoria libre.
 - Almacenamiento de la VM 1: se mantiene sin ampliar antes de instalar Wazuh, con el espacio libre de LVM como reserva. La decisión está justificada en [`documentation/vm-01-setup.md`](../documentation/vm-01-setup.md).

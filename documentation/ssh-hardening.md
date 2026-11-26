@@ -374,6 +374,12 @@ Las decisiones son hechos del laboratorio. Las alternativas y justificaciones so
 | Reinicio del servicio | Aplicación | VM | `sudo systemctl restart ssh.service` | Realizado, con la sesión administrativa abierta |
 | Clave después del reinicio | Positiva | MacBook Pro | Segunda conexión SSH (comando no registrado) | Conexión exitosa |
 | Contraseña después del reinicio | Negativa | MacBook Pro | `ssh -o PubkeyAuthentication=no ...` (sección 4.11) | `Permission denied (publickey).` |
+| Consola de VMware Fusion (2026-11-04 y 2026-11-26) | Acceso de emergencia | VM | Inicio de sesión local con la contraseña de `socadmin` | Correcto |
+| Valores tras apagar y encender la VM (2026-11-26) | Configuración | VM | `sudo sshd -T` filtrado con `grep -Ei` | Los cuatro valores esperados |
+| Clave tras el arranque (2026-11-26) | Positiva | MacBook Pro | `ssh -i ~/.ssh/<CLAVE_LAB> socadmin@172.16.50.10` | Conexión exitosa |
+| Contraseña tras el arranque (2026-11-26) | Negativa | MacBook Pro | `ssh -o PubkeyAuthentication=no socadmin@172.16.50.10` | `Permission denied (publickey).` |
+
+> Las comprobaciones del 2026-11-26 se hicieron tras apagar la VM por completo y volver a encenderla, con su nueva IP fija (ver `vm-01-setup.md`). Demuestran que la configuración persiste al arrancar y que el servicio la aplica.
 
 ### 6.2 Qué demuestra cada comprobación
 
@@ -387,9 +393,8 @@ Las decisiones son hechos del laboratorio. Las alternativas y justificaciones so
 ### 6.3 Sin comprobar
 
 - **Inicio de sesión SSH directo como `root`.** `PermitRootLogin no` solo está confirmado por `sshd -T`.
-- **Persistencia tras reiniciar la VM.** Solo consta el reinicio de `ssh.service`.
 - **Restauración del snapshot.**
-- **Acceso de emergencia por la consola de VMware Fusion** después del cambio.
+- **Procedimiento completo de recuperación.** El inicio de sesión por consola está comprobado, pero no la recuperación del acceso si se perdiera también la contraseña de `socadmin`.
 - **Registros del servidor** correspondientes a las pruebas.
 
 > **Cómo diseñar la prueba de `root`.** Un `ssh root@<IP_SERVIDOR>` rechazado no sería concluyente por sí solo: sin contraseñas y sin una clave autorizada para `root`, el acceso se rechazaría también con otro valor de `PermitRootLogin`. Para atribuir el rechazo a esta directiva, `root` tendría que presentar una credencial válida, lo que implica un cambio temporal en la VM que debe autorizarse y revertirse. **Esta prueba no se ha realizado y queda pendiente de decisión.**
@@ -447,7 +452,7 @@ Recomendaciones:
 ## 9. Seguridad
 
 - **Datos no documentados:** este repositorio no contiene la clave privada, la clave pública, su huella, el nombre del archivo de la clave, la passphrase ni contraseñas.
-- **Riesgo operativo:** perder la clave privada u olvidar la passphrase impide el acceso SSH. Las vías de recuperación previstas son la consola de VMware Fusion y el snapshot; **ninguna se ha comprobado en este hito**. Restaurar el snapshot revertiría también cualquier cambio posterior a su creación.
+- **Riesgo operativo:** perder la clave privada u olvidar la passphrase impide el acceso SSH. Las vías de recuperación previstas son la consola de VMware Fusion y el snapshot. El inicio de sesión por consola se comprobó después de este hito (2026-11-04 y 2026-11-26); **la restauración del snapshot sigue sin probar**. Restaurar el snapshot revertiría también cualquier cambio posterior a su creación.
 - **Medidas no aplicadas:** restricción por usuarios (`AllowUsers`), límite de intentos (`MaxAuthTries`), cambio de puerto, cortafuegos y Fail2Ban no forman parte de los cambios registrados y no deben darse por aplicadas.
 - **Implicación para el LAB 01:** con las contraseñas desactivadas, no se espera que este servidor genere eventos `Failed password` por intentos SSH (información técnica general, no verificada en este laboratorio). La arquitectura prevé las prácticas de autenticación en SOC-LINUX-ENDPOINT, cuyo servidor SSH sigue sin comprobarse. Conviene tenerlo en cuenta al diseñar ese laboratorio.
 
@@ -466,12 +471,12 @@ Recomendaciones:
 - [x] `ssh.service` reiniciado para aplicar la configuración.
 - [x] Prueba positiva: nueva conexión mediante claves exitosa.
 - [x] Prueba negativa: autenticación por contraseña rechazada.
+- [x] Configuración persistente tras apagar y encender la VM, con pruebas positiva y negativa (2026-11-26).
+- [x] Inicio de sesión de emergencia por la consola de VMware Fusion (2026-11-26).
 
 ### Pendiente
 
 - [ ] Decidir cómo comprobar el comportamiento de `PermitRootLogin no` (sección 6.3) y, si procede, ejecutar la prueba.
-- [ ] Comprobar que la configuración persiste tras reiniciar la VM.
-- [ ] Comprobar el acceso de emergencia por la consola de VMware Fusion.
 - [ ] Ejecutar las comprobaciones complementarias de la sección 6.4.
 - [ ] Incorporar las evidencias de la sección 8 en `evidence/screenshots/ssh-hardening/`.
 

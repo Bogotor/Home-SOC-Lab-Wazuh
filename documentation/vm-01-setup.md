@@ -169,7 +169,8 @@ ssh socadmin@172.16.203.128
 | Disco sin preasignación | Disco preasignado | En el anfitrión solo ocupa el espacio usado. Puede crecer hasta 60 GB, por lo que conviene vigilar el espacio libre en macOS. |
 | LVM con ext4 | Particiones directas, otros sistemas de archivos | LVM permite redimensionar volúmenes. ext4 es el sistema de archivos por defecto del instalador y está ampliamente documentado. |
 | Red NAT inicial | Bridged, red solo de anfitrión (host-only) | Permite acceso a Internet para actualizaciones sin exponer la VM en la red local. **Limitación:** no está comprobado que el endpoint Windows físico pueda alcanzar el servidor en este modo. Se revisará antes de incorporar agentes. **Actualización:** el endpoint Windows físico se retiró y la red pasó a `vmnet2`; ver [`architecture.md`](../architecture/architecture.md), sección 4. |
-| IP obtenida por DHCP | IP estática, reserva DHCP | Suficiente para la instalación. La IP no se considera permanente: el direccionamiento definitivo está pendiente. |
+| IP obtenida por DHCP | IP estática, reserva DHCP | Suficiente para la instalación. La IP no se considera permanente: el direccionamiento definitivo está pendiente. **Actualización:** sustituida por la reserva de la fila siguiente. |
+| Reserva DHCP en `vmnet2` con MAC estática (2026-11-26) | IP estática en Ubuntu (netplan); reserva asociada a la MAC generada | La IP del servidor quedará en la configuración y los certificados de Wazuh y en los agentes, así que no debe cambiar. La reserva no modifica la red dentro de la VM. La MAC estática evita que la reserva deje de aplicarse si Fusion regenera la MAC, como ocurrió entre el 2026-11-04 y el 2026-11-26. `172.16.50.10` está fuera del rango dinámico (`.128`–`.254`), así que el DHCP no puede prestarla a otra máquina. |
 | Hostname en minúsculas | Mayúsculas, como el nombre de la VM | Convención habitual en sistemas Linux. El nombre de la VM en VMware (`SOC-WAZUH-SERVER`) es independiente del hostname. |
 | No ampliar `/` antes de instalar Wazuh (2026-11-02) | Ampliar `/` con el espacio libre de LVM; aumentar el disco virtual | `/` tiene 40 GB disponibles, por debajo de los 50 GB que la [guía de inicio rápido](https://documentation.wazuh.com/current/quickstart.html) indica para 1 a 25 agentes y 90 días de alertas. El laboratorio prevé unos 3 sistemas monitorizados: la [guía del Indexer](https://documentation.wazuh.com/current/installation-guide/wazuh-indexer/index.html) permite estimar unos 6,7 GB de alertas en 90 días, sin contar lo que ocupa Wazuh. El espacio libre de LVM queda como reserva. **Pendiente tras instalar:** definir la retención, vigilar la ocupación y repetir la medición. |
 | Instalar Wazuh 4.14.9 con el asistente por etapas (2026-11-02; instalación pendiente) | Asistente todo en uno (`wazuh-install.sh -a`); instalación paso a paso | Permite validar cada componente por separado y aprender el orden real (Indexer, Server, Dashboard), mientras el asistente genera certificados y contraseñas. `wazuh-install-files.tar` contiene secretos y no debe llegar al repositorio. |
@@ -197,6 +198,8 @@ Comandos ejecutados y resultados confirmados durante la implementación. Cuando 
 | Almacenamiento real (2026-11-02, repetición) | VM | `df -h /` y `sudo vgs` | `/` de 49 GB, con 6,8 GB usados y 40 GB disponibles (15 %); `ubuntu-vg`: `VSize` `<56.95g`, `VFree` `<6.95g` |
 | Arquitectura (2026-11-02) | VM | `dpkg --print-architecture` y `uname -m` | `arm64` y `aarch64` |
 | Puertos TCP a la escucha (2026-11-02) | VM | `sudo ss -tlnp` | TCP 22 en todas las interfaces (`sshd`); TCP 53 solo en `127.0.0.53` y `127.0.0.54` (`systemd-resolve`); ningún proceso en los puertos de Wazuh 443, 1514, 1515, 1516, 9200, 9300 y 55000 |
+| Red `vmnet2` con IP por DHCP (2026-11-04) | VM | `ip -br address`, `ip route` y `ping -c 2 ubuntu.com` | `172.16.50.128/24`; ruta por defecto por `172.16.50.2`; 0 % de pérdida |
+| MAC estática e IP reservada (2026-11-26) | VM | `ip -br link show enp2s0` e `ip -br address show enp2s0` | MAC `00:50:56:00:50:10`; IPv4 `172.16.50.10/24`; IPv6 local `fe80::250:56ff:fe00:5010`, derivada de la MAC (EUI-64) |
 
 `timedatectl` muestra la hora del sistema, la zona horaria y si la sincronización NTP está activa. `System clock synchronized: yes` es lo que declara el sistema: no mide el desfase real (*offset*) ni identifica el servidor de hora, que no se han comprobado.
 
@@ -207,6 +210,14 @@ Comandos ejecutados y resultados confirmados durante la implementación. Cuando 
 `dpkg --print-architecture` y `uname -m` muestran la misma arquitectura con los nombres que usan Debian y el kernel. `ss -tlnp` lista sockets TCP (`-t`) a la escucha (`-l`), en formato numérico (`-n`) y con el proceso asociado (`-p`, requiere `sudo`). Los puertos se compararon con la lista del instalador de Wazuh 4.14. La salida refleja solo ese momento y no evalúa el firewall.
 
 **Compatibilidad de Wazuh 4.14.9 (2026-11-02):** la [guía de inicio rápido](https://documentation.wazuh.com/current/quickstart.html) admite Ubuntu 24.04 y ARM64 para los componentes centrales. La [lista de paquetes](https://documentation.wazuh.com/current/installation-guide/packages-list.html) incluye Indexer, Manager y Dashboard para `arm64`, y el servidor de paquetes respondió HTTP 200 a una consulta de cabeceras de cada uno, sin descargarlos. Es compatibilidad documentada: su funcionamiento en esta VM se comprobará al instalar.
+
+**IP fija (2026-11-26):** la MAC de la VM era de tipo `generated` y cambió entre el 2026-11-04 y el 2026-11-26. Se dedujo comparando su IPv6 local, que se genera a partir de la MAC. La causa más probable es haber respondido «La he copiado» cuando Fusion preguntaba si la VM se había movido o copiado: esa respuesta regenera la identidad de la VM y su MAC. Para fijar la IP:
+
+- En el `.vmx`, con la VM apagada y Fusion cerrado: `ethernet0.addressType = "static"` y `ethernet0.address = "00:50:56:00:50:10"`, dentro del rango que VMware admite para MAC estáticas (`00:50:56:00:00:00`–`00:50:56:3F:FF:FF`). Se eliminaron `ethernet0.generatedAddress` y `ethernet0.generatedAddressOffset`.
+- En `/Library/Preferences/VMware Fusion/vmnet2/dhcpd.conf` del anfitrión: un bloque `host` con esa MAC y `fixed-address 172.16.50.10`, después de la sección que gestiona Fusion (`DO NOT MODIFY SECTION`), que Fusion puede regenerar.
+- Se guardaron copias previas de ambos archivos, que no se publican. `sudo vmnet-cli --stop` y `--start` no consiguieron reiniciar los servicios de red, tampoco en las redes no modificadas: los servicios volvieron a arrancar al abrir Fusion.
+
+La IP reservada, recibida por la MAC estática, demuestra que ambos cambios se aplicaron.
 
 ### 5.2 Comprobaciones complementarias recomendadas
 
@@ -287,16 +298,16 @@ Recomendaciones:
 - [x] Estado de systemd comprobado, sin units fallidas (2026-11-02).
 - [x] Recursos medidos en reposo y sin Wazuh (2026-11-02).
 - [x] Compatibilidad de Wazuh 4.14.9 con Ubuntu 24.04 ARM64 confirmada en la documentación oficial, sin probar su instalación (2026-11-02).
+- [x] IP fija `172.16.50.10` en `vmnet2` mediante reserva DHCP y MAC estática (2026-11-26).
 
 ### Pendiente
 
 - [ ] Verificar la firma GPG de `SHA256SUMS` (mejora recomendada).
 - [ ] Ejecutar las comprobaciones complementarias de la sección 5.2 y conservar sus salidas como evidencias.
 - [ ] Incorporar las evidencias de la sección 7 en `evidence/screenshots/vm-01/`.
-- [ ] Reservar la IP fija del servidor en la red `vmnet2`.
 - [ ] Instalar Wazuh (Server, Indexer y Dashboard).
 
-> **Actualización (2026-11-04):** el servidor se movió a la red NAT personalizada `vmnet2` y su IP actual es `172.16.50.128`, asignada por DHCP. Las referencias a `172.16.203.128` de este documento corresponden a la red inicial. El endpoint Windows físico, que figuraba aquí como pendiente, se retiró el 2026-11-26 y se sustituirá por una VM. Ver [`architecture.md`](../architecture/architecture.md), sección 4.
+> **Actualización (2026-11-04):** el servidor se movió a la red NAT personalizada `vmnet2` y recibió `172.16.50.128` por DHCP. Desde el 2026-11-26 su IP fija es `172.16.50.10` (sección 5.1). Las referencias a `172.16.203.128` de este documento corresponden a la red inicial. El endpoint Windows físico, que figuraba aquí como pendiente, se retiró el 2026-11-26 y se sustituirá por una VM. Ver [`architecture.md`](../architecture/architecture.md), sección 4.
 
 > **Actualización:** el endpoint Linux (VM 2, SOC-LINUX-ENDPOINT), que figuraba aquí como pendiente, ya está creado, instalado y validado. La conectividad ICMP entre ambas VM está comprobada. Ver [`vm-02-setup.md`](vm-02-setup.md).
 

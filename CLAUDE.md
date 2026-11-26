@@ -142,7 +142,7 @@ Repositorio público `Bogotor/Home-SOC-Lab-Wazuh`, rama principal `main`.
 
 **Almacenamiento del servidor:** EFI ≈ 1 GB, `/boot` ≈ 2 GB, `/` ≈ 50 GB en ext4 sobre LVM y ≈ 6,9 GB libres en el grupo LVM. Los 60 GB del disco virtual no están todos disponibles en `/`: comprueba el espacio real antes de instalar Wazuh, con especial atención al Indexer.
 
-**Red:** todas las VM irán a `vmnet2`, una red NAT personalizada de VMware Fusion (`172.16.50.0/24`; Mac `.1`, puerta de enlace `.2`, DHCP `.128`–`.254`), sin reenvío de puertos. El servidor ya está en ella con `172.16.50.128`, asignada por DHCP y sin reservar (2026-11-04). El endpoint Linux sigue en la NAT inicial (`172.16.203.129`) hasta moverlo, así que de momento no alcanza al servidor. Detalle en `architecture/architecture.md`, sección 4. Un `ping` no demuestra que los puertos TCP de Wazuh estén disponibles.
+**Red:** todas las VM irán a `vmnet2`, una red NAT personalizada de VMware Fusion (`172.16.50.0/24`; Mac `.1`, puerta de enlace `.2`, DHCP `.128`–`.254`), sin reenvío de puertos. El servidor ya está en ella con IP fija `172.16.50.10` (2026-11-26): reserva DHCP en `vmnet2/dhcpd.conf`, fuera de la sección que gestiona Fusion, y MAC estática `00:50:56:00:50:10` en su `.vmx`. Cuando Fusion pregunte si una VM se movió o se copió, la respuesta correcta es «La he movido». Para aplicar cambios en la red de Fusion, ciérralo y ábrelo: en esta versión, `vmnet-cli --start` no arranca los servicios. El endpoint Linux sigue en la NAT inicial (`172.16.203.129`) hasta moverlo, así que de momento no alcanza al servidor. Detalle en `architecture/architecture.md`, sección 4. Un `ping` no demuestra que los puertos TCP de Wazuh estén disponibles.
 
 **Decisión de red (2026-11-26):** al virtualizar el endpoint Windows, el reenvío de puertos diseñado para el mini PC queda descartado y nunca llegó a configurarse. No expongas servicios del laboratorio en la red local física.
 
@@ -172,8 +172,9 @@ Resumen a 2026-11-26, último commit `1a55cef`. Los datos de infraestructura pro
 - Comprobaciones previas a Wazuh (2026-11-02), registradas en `vm-01-setup.md` y `vm-02-setup.md`: hora y NTP en ambas VM, estado de systemd del servidor, recursos en reposo de ambas VM y del Mac, arquitectura `arm64` y puertos de Wazuh libres en el servidor.
 - Decisiones (2026-11-02): no ampliar `/` antes de instalar, con el espacio libre de LVM como reserva, e instalar Wazuh 4.14.9 con el asistente por etapas. La compatibilidad ARM64 está documentada, pero no probada. `.gitignore` cubre `wazuh-install-files.tar`, que genera ese método.
 - Red `vmnet2` creada y servidor movido a ella (2026-11-04).
+- IP fija del servidor y hardening de SSH comprobado tras apagar y encender la VM, incluido el inicio de sesión por consola (2026-11-26).
 
-**Límites del hardening:** sin prueba directa de acceso como `root`, sin comprobar la persistencia tras reiniciar la VM, sin probar la recuperación por consola, sin auditoría integral de OpenSSH y sin política de firewall. Es un endurecimiento de la autenticación SSH, no un bastionado completo del servidor.
+**Límites del hardening:** sin prueba directa de acceso como `root`, sin probar la restauración del snapshot, sin auditoría integral de OpenSSH y sin política de firewall. La persistencia tras apagar y encender la VM y el inicio de sesión por consola se comprobaron el 2026-11-26. Es un endurecimiento de la autenticación SSH, no un bastionado completo del servidor.
 
 **Wazuh Server, Indexer, Dashboard y los agentes no están instalados.**
 
@@ -187,11 +188,11 @@ Resumen a 2026-11-26, último commit `1a55cef`. Los datos de infraestructura pro
 **Seguridad:**
 
 - Revisar los puertos expuestos y definir la política de firewall.
-- Comprobar la persistencia del hardening y la recuperación por consola, y decidir cómo probar `PermitRootLogin no`.
+- Decidir cómo probar `PermitRootLogin no`.
 
 **Infraestructura:**
 
-- Reservar la IP fija del servidor en `vmnet2` y mover el endpoint Linux a esa red.
+- Mover el endpoint Linux a `vmnet2`.
 - Comprobar el estado del servidor SSH en la VM endpoint.
 - VM Windows: confirmar los requisitos de Windows 11 para ARM en Fusion 26H1 y la licencia, crearla en `vmnet2` y probar Wazuh Agent en ella.
 - Medir de nuevo los recursos con Wazuh en marcha y con la VM Windows.
@@ -204,7 +205,7 @@ Resumen a 2026-11-26, último commit `1a55cef`. Los datos de infraestructura pro
 2. Verificar el estado del servidor, la hora y NTP (hecho).
 3. Medir RAM, CPU y almacenamiento (hecho).
 4. Confirmar la compatibilidad ARM64 y revisar las opciones de instalación y sus riesgos (hecho).
-5. Definir la estrategia de red y el acceso seguro (en curso: falta reservar la IP del servidor y mover el endpoint Linux a `vmnet2`).
+5. Definir la estrategia de red y el acceso seguro (en curso: falta mover el endpoint Linux a `vmnet2`).
 6. Confirmar el punto de recuperación previo a cambios mayores.
 7. Instalar los componentes centrales y validar cada servicio, Dashboard, API y conectividad.
 8. Documentar el procedimiento, incorporar evidencias y registrar un commit aprobado.

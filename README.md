@@ -61,7 +61,7 @@ Completado:
 
 Pendiente:
 - Validación definitiva de la arquitectura.
-- Completar la red del laboratorio: reservar la IP del servidor y mover el endpoint Linux a la nueva red.
+- Completar la red del laboratorio: mover el endpoint Linux a la nueva red. El servidor ya tiene IP fija.
 - Prueba del comportamiento de `PermitRootLogin no` en SOC-WAZUH-SERVER (confirmado en la configuración, sin prueba directa de inicio de sesión como root).
 - Incorporación de evidencias de las VM SOC-WAZUH-SERVER y SOC-LINUX-ENDPOINT y del hardening de SSH.
 - Instalación de Wazuh.
