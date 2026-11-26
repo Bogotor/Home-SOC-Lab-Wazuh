@@ -200,6 +200,8 @@ Comandos ejecutados y resultados confirmados durante la implementación. Cuando 
 | Puertos TCP a la escucha (2026-11-02) | VM | `sudo ss -tlnp` | TCP 22 en todas las interfaces (`sshd`); TCP 53 solo en `127.0.0.53` y `127.0.0.54` (`systemd-resolve`); ningún proceso en los puertos de Wazuh 443, 1514, 1515, 1516, 9200, 9300 y 55000 |
 | Red `vmnet2` con IP por DHCP (2026-11-04) | VM | `ip -br address`, `ip route` y `ping -c 2 ubuntu.com` | `172.16.50.128/24`; ruta por defecto por `172.16.50.2`; 0 % de pérdida |
 | MAC estática e IP reservada (2026-11-26) | VM | `ip -br link show enp2s0` e `ip -br address show enp2s0` | MAC `00:50:56:00:50:10`; IPv4 `172.16.50.10/24`; IPv6 local `fe80::250:56ff:fe00:5010`, derivada de la MAC (EUI-64) |
+| Snapshot `pre-wazuh-install` (2026-11-26) | MacBook Pro | VMware Fusion, con la VM apagada; comprobado en el archivo `.vmsd` | Hijo de `baseline-before-ssh-hardening`; la VM pasa a escribir en un disco delta nuevo; sin memoria guardada |
+| Prueba de restauración (2026-11-26) | VM y MacBook Pro | Archivo `~/prueba-restauracion.txt` creado después del snapshot, restauración de `pre-wazuh-install` sin guardar el estado actual y `ls -l` e `ip -br address` tras encender | El archivo de prueba ya no existe; se conservan la IP `172.16.50.10` y el acceso SSH por clave |
 
 `timedatectl` muestra la hora del sistema, la zona horaria y si la sincronización NTP está activa. `System clock synchronized: yes` es lo que declara el sistema: no mide el desfase real (*offset*) ni identifica el servidor de hora, que no se han comprobado.
 
@@ -218,6 +220,8 @@ Comandos ejecutados y resultados confirmados durante la implementación. Cuando 
 - Se guardaron copias previas de ambos archivos, que no se publican. `sudo vmnet-cli --stop` y `--start` no consiguieron reiniciar los servicios de red, tampoco en las redes no modificadas: los servicios volvieron a arrancar al abrir Fusion.
 
 La IP reservada, recibida por la MAC estática, demuestra que ambos cambios se aplicaron.
+
+**Punto de recuperación (2026-11-26):** el snapshot `pre-wazuh-install` se creó con la VM apagada, para que el disco quedara en un estado coherente y sin guardar la memoria. La prueba de restauración demuestra que este snapshot permite volver al estado previo a la instalación de Wazuh. También mostró que la restauración borra los registros de acceso posteriores: `Last login` volvió a mostrar la sesión anterior al snapshot. Un snapshot vive en el mismo disco del anfitrión que la VM, así que no sustituye a una copia de seguridad.
 
 ### 5.2 Comprobaciones complementarias recomendadas
 
@@ -299,6 +303,7 @@ Recomendaciones:
 - [x] Recursos medidos en reposo y sin Wazuh (2026-11-02).
 - [x] Compatibilidad de Wazuh 4.14.9 con Ubuntu 24.04 ARM64 confirmada en la documentación oficial, sin probar su instalación (2026-11-02).
 - [x] IP fija `172.16.50.10` en `vmnet2` mediante reserva DHCP y MAC estática (2026-11-26).
+- [x] Snapshot `pre-wazuh-install` creado y restauración probada (2026-11-26).
 
 ### Pendiente
 

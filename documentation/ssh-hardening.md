@@ -393,7 +393,7 @@ Las decisiones son hechos del laboratorio. Las alternativas y justificaciones so
 ### 6.3 Sin comprobar
 
 - **Inicio de sesión SSH directo como `root`.** `PermitRootLogin no` solo está confirmado por `sshd -T`.
-- **Restauración del snapshot.**
+- **Restauración del snapshot `baseline-before-ssh-hardening`.** El mecanismo de restauración se probó el 2026-11-26 con otro snapshot, `pre-wazuh-install` (ver `vm-01-setup.md`). Restaurar este revertiría el hardening, así que no se ha hecho.
 - **Procedimiento completo de recuperación.** El inicio de sesión por consola está comprobado, pero no la recuperación del acceso si se perdiera también la contraseña de `socadmin`.
 - **Registros del servidor** correspondientes a las pruebas.
 
@@ -452,7 +452,7 @@ Recomendaciones:
 ## 9. Seguridad
 
 - **Datos no documentados:** este repositorio no contiene la clave privada, la clave pública, su huella, el nombre del archivo de la clave, la passphrase ni contraseñas.
-- **Riesgo operativo:** perder la clave privada u olvidar la passphrase impide el acceso SSH. Las vías de recuperación previstas son la consola de VMware Fusion y el snapshot. El inicio de sesión por consola se comprobó después de este hito (2026-11-04 y 2026-11-26); **la restauración del snapshot sigue sin probar**. Restaurar el snapshot revertiría también cualquier cambio posterior a su creación.
+- **Riesgo operativo:** perder la clave privada u olvidar la passphrase impide el acceso SSH. Las vías de recuperación previstas son la consola de VMware Fusion y el snapshot. El inicio de sesión por consola se comprobó después de este hito (2026-11-04 y 2026-11-26); **la restauración de este snapshot sigue sin probar**, aunque el mecanismo se comprobó con `pre-wazuh-install` (2026-11-26). Restaurar el snapshot revertiría también cualquier cambio posterior a su creación.
 - **Medidas no aplicadas:** restricción por usuarios (`AllowUsers`), límite de intentos (`MaxAuthTries`), cambio de puerto, cortafuegos y Fail2Ban no forman parte de los cambios registrados y no deben darse por aplicadas.
 - **Implicación para el LAB 01:** con las contraseñas desactivadas, no se espera que este servidor genere eventos `Failed password` por intentos SSH (información técnica general, no verificada en este laboratorio). La arquitectura prevé las prácticas de autenticación en SOC-LINUX-ENDPOINT, cuyo servidor SSH sigue sin comprobarse. Conviene tenerlo en cuenta al diseñar ese laboratorio.
 

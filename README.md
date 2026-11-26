@@ -58,6 +58,7 @@ Completado:
 - Hardening de SSH en SOC-WAZUH-SERVER: acceso mediante clave Ed25519 comprobado y autenticación por contraseña rechazada en una prueba controlada ([documentación](documentation/ssh-hardening.md)).
 - Comprobaciones previas a Wazuh: hora y NTP, estado de systemd, recursos, arquitectura y puertos libres. Elegido Wazuh 4.14.9 con el asistente de instalación por etapas.
 - Red NAT personalizada del laboratorio en VMware Fusion, con el servidor (IP fija) y el endpoint Linux conectados y su conectividad comprobada ([arquitectura](architecture/architecture.md)).
+- Punto de recuperación previo a Wazuh: snapshot del servidor con la restauración probada.
 
 Pendiente:
 - Validación definitiva de la arquitectura.

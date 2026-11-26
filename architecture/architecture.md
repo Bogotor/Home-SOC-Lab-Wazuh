@@ -187,6 +187,7 @@ Esta distribución también permite estudiar monitoreo de seguridad en Linux y W
 - VM 2 (SOC-LINUX-ENDPOINT): Ubuntu Desktop instalado, actualizado, en funcionamiento y con conectividad ICMP con la VM 1. Wazuh Agent todavía no instalado.
 - Endpoint Windows: el mini PC dejó de estar disponible. Se sustituirá por una VM con Windows 11 para ARM en `vmnet2`, después de instalar Wazuh central.
 - Red: `vmnet2` creada (2026-11-04). La VM 1 ya está en ella con IP fija `172.16.50.10` (2026-11-26); la VM 2 también, con `172.16.50.129` por DHCP (2026-11-26).
+- Punto de recuperación: snapshot `pre-wazuh-install` de la VM 1, creado con la VM apagada y con la restauración probada (2026-11-26). Los snapshots no sustituyen copias de seguridad.
 - Sincronización horaria: comprobada en la VM 1 y la VM 2 con `timedatectl` (2026-11-02), sin medir el desfase real.
 - Recursos: medidos en reposo, sin Wazuh y con ambas VM encendidas (2026-11-02). El detalle está en los documentos de cada VM. En el MacBook Pro: 597 GiB de disco disponibles y 72 % de memoria libre.
 - Almacenamiento de la VM 1: se mantiene sin ampliar antes de instalar Wazuh, con el espacio libre de LVM como reserva. La decisión está justificada en [`documentation/vm-01-setup.md`](../documentation/vm-01-setup.md).

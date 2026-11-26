@@ -148,9 +148,10 @@ Repositorio público `Bogotor/Home-SOC-Lab-Wazuh`, rama principal `main`.
 
 **Riesgo abierto:** Wazuh no publica un agente ARM64 para Windows. El MSI «32/64 bits» depende de la emulación x64 de Windows 11 para ARM y debe probarse antes de planificar laboratorios de Windows sobre él.
 
-**Snapshots** (vistos en VMware Fusion; restauración sin probar; no sustituyen copias de seguridad):
+**Snapshots** (vistos en VMware Fusion; no sustituyen copias de seguridad):
 
-- `baseline-before-ssh-hardening` (servidor): acceso por clave ya verificado, antes de cambiar la política de autenticación. Restaurarlo revierte el hardening y todo cambio posterior.
+- `baseline-before-ssh-hardening` (servidor): acceso por clave ya verificado, antes de cambiar la política de autenticación. Restaurarlo revierte el hardening y todo cambio posterior. Restauración sin probar.
+- `pre-wazuh-install` (servidor, 2026-11-26): hijo del anterior, creado con la VM apagada tras fijar la IP y comprobar el hardening. **Es el punto de recuperación para instalar Wazuh.** Restauración probada: un archivo creado después desapareció y se conservaron la IP fija y el acceso por clave.
 - `baseline-ubuntu-desktop-24.04.5` (endpoint): tras la instalación, las actualizaciones, la configuración básica, las pruebas de conectividad y open-vm-tools.
 
 **Uso de la VM endpoint:** se admiten Bash, Python, administración, diagnóstico, análisis de logs, Wireshark, Nmap en redes autorizadas y eventos controlados para Wazuh. Comprueba la compatibilidad ARM64 antes de instalar herramientas x86-64. Para prácticas destructivas o que exijan aislamiento, evalúa una VM temporal. No crees máquinas adicionales sin justificarlo.
@@ -174,8 +175,9 @@ Resumen a 2026-11-26, último commit `1a55cef`. Los datos de infraestructura pro
 - Red `vmnet2` creada y servidor movido a ella (2026-11-04).
 - IP fija del servidor y hardening de SSH comprobado tras apagar y encender la VM, incluido el inicio de sesión por consola (2026-11-26).
 - Endpoint Linux movido a `vmnet2`, con conectividad con el servidor comprobada (2026-11-26).
+- Snapshot `pre-wazuh-install` del servidor, con restauración probada (2026-11-26).
 
-**Límites del hardening:** sin prueba directa de acceso como `root`, sin probar la restauración del snapshot, sin auditoría integral de OpenSSH y sin política de firewall. La persistencia tras apagar y encender la VM y el inicio de sesión por consola se comprobaron el 2026-11-26. Es un endurecimiento de la autenticación SSH, no un bastionado completo del servidor.
+**Límites del hardening:** sin prueba directa de acceso como `root`, sin probar la restauración del snapshot previo al hardening, sin auditoría integral de OpenSSH y sin política de firewall. La persistencia tras apagar y encender la VM y el inicio de sesión por consola se comprobaron el 2026-11-26. Es un endurecimiento de la autenticación SSH, no un bastionado completo del servidor.
 
 **Wazuh Server, Indexer, Dashboard y los agentes no están instalados.**
 
@@ -206,7 +208,7 @@ Resumen a 2026-11-26, último commit `1a55cef`. Los datos de infraestructura pro
 3. Medir RAM, CPU y almacenamiento (hecho).
 4. Confirmar la compatibilidad ARM64 y revisar las opciones de instalación y sus riesgos (hecho).
 5. Definir la estrategia de red y el acceso seguro (hecho para la red; la política de firewall se definirá después de instalar Wazuh).
-6. Confirmar el punto de recuperación previo a cambios mayores.
+6. Confirmar el punto de recuperación previo a cambios mayores (hecho: snapshot `pre-wazuh-install`, con restauración probada).
 7. Instalar los componentes centrales y validar cada servicio, Dashboard, API y conectividad.
 8. Documentar el procedimiento, incorporar evidencias y registrar un commit aprobado.
 
